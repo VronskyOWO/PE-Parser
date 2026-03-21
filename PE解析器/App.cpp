@@ -188,7 +188,7 @@ void App::DrawResourceView()
         DWORD dataFoa = RvaToFoa(selectedResData.dataRva);
         BYTE* data = (BYTE*)(currentPE->fileReadBuffer + dataFoa);
 
-        ImGui::Text("RT_MENU raw bytes (size=0x%X)", selectedResData.dataSize);
+        ImGui::Text("raw bytes (size=0x%X)", selectedResData.dataSize);
         ImGui::Separator();
         DrawHexDump(data, (size_t)selectedResData.dataSize, 16);
     }
