@@ -1,3 +1,5 @@
+cpp17 ，lib  ntdll.lib;d3d11.lib;d3dcompiler.lib;
+
 中文描述：
   PE文件解析器，用visual studio克隆下来编译即可使用，无论编译成x32还是x64都支持解析x32、x64的PE文件
 
