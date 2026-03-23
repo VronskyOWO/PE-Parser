@@ -339,6 +339,11 @@ void App::DrawResourceNode(
 
 void App::DrawBaseRelocaleView()
 {
+    if (currentPE->relocaleDir->VirtualAddress == NULL)
+    {
+        ImGui::Text(u8"no relocale table");
+        return;
+    }
     ImGui::BeginChild("BaseRelocale View");
     ImGui::Text("BaseRelocale Imformation");
     ImGui::Separator();
@@ -810,10 +815,10 @@ void App::DrawNtOptionalHeaderView()
     {
 
         ImGui::TableHeadersRow();
-        PVOID _pNtHeader = NULL;
-        if (currentPE->is64)_pNtHeader = currentPE->pNtHeader64;
-        else _pNtHeader = currentPE->pNtHeader32;
-        PVOID _pOptionalHeader =(PCHAR)_pNtHeader + 4 + IMAGE_SIZEOF_FILE_HEADER;
+
+        PVOID _pOptionalHeader = NULL;
+        if (currentPE->is64)_pOptionalHeader = &currentPE->pNtHeader64->OptionalHeader;
+        else _pOptionalHeader = &currentPE->pNtHeader32->OptionalHeader;
 
         if (currentPE->is64)
         {
@@ -835,7 +840,7 @@ void App::DrawNtOptionalHeaderView()
             ADD_ROW(SizeOfUninitializedData, "","0x%08x");
             ADD_ROW(AddressOfEntryPoint, "","0x%08x");
             ADD_ROW(BaseOfCode, "","0x%08x");
-            ADD_ROW(ImageBase, "","0x%016x");
+            ADD_ROW(ImageBase, "","0x%016llx");
             ADD_ROW(SectionAlignment, "","0x%08x");
             ADD_ROW(FileAlignment, "","0x%08x");
             ADD_ROW(MajorOperatingSystemVersion, "","0x%04x");
@@ -850,10 +855,10 @@ void App::DrawNtOptionalHeaderView()
             ADD_ROW(CheckSum, "","0x%08x");
             ADD_ROW(Subsystem, "","0x%04x");
             ADD_ROW(DllCharacteristics, "","0x%04x");
-            ADD_ROW(SizeOfStackReserve, "","0x%016x");
-            ADD_ROW(SizeOfStackCommit, "","0x%016x");
-            ADD_ROW(SizeOfHeapReserve, "","0x%016x");
-            ADD_ROW(SizeOfHeapCommit, "","0x%016x");
+            ADD_ROW(SizeOfStackReserve, "","0x%016llx");
+            ADD_ROW(SizeOfStackCommit, "","0x%016llx");
+            ADD_ROW(SizeOfHeapReserve, "","0x%016llx");
+            ADD_ROW(SizeOfHeapCommit, "","0x%016llx");
             ADD_ROW(LoaderFlags, "", "0x%08x");
             ADD_ROW(NumberOfRvaAndSizes, "", "0x%08x");
             
