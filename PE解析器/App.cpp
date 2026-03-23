@@ -109,6 +109,9 @@ void App::DrawPEView()
     case View_Resource:
         DrawResourceView();
         break;
+    case View_BaseRelocale:
+        DrawBaseRelocaleView();
+        break;
     default:
         ImGui::Text(u8"等待加载文件...");
         break;
@@ -334,15 +337,148 @@ void App::DrawResourceNode(
     }
 }
 
+void App::DrawBaseRelocaleView()
+{
+    ImGui::BeginChild("BaseRelocale View");
+    ImGui::Text("BaseRelocale Imformation");
+    ImGui::Separator();
+    // 给上下两个表格分配高度（你也可以改成你想要的比例）
+    float availY = ImGui::GetContentRegionAvail().y;
+    float topH = availY * 0.45f;
+    float gap = ImGui::GetStyle().ItemSpacing.y;
+    float bottomH = availY - topH - gap;
+    if (bottomH < 100.0f) bottomH = 100.0f;
+
+    // ========== 上表：重定位块列表（带滚动条） ==========
+    ImGui::BeginChild("RelocBlocksChild", ImVec2(0, topH), true, ImGuiWindowFlags_HorizontalScrollbar);
+    ImGuiTableFlags topFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY;
+
+    if (ImGui::BeginTable("BaseRelocale Table", 3, topFlags))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
+        ImGui::TableSetupColumn(u8"", ImGuiTableColumnFlags_WidthFixed, 250.0f);
+        ImGui::TableSetupColumn(u8"VirtualAddress", ImGuiTableColumnFlags_WidthStretch, 170.0f);
+        ImGui::TableSetupColumn(u8"SizeOfBlock", ImGuiTableColumnFlags_WidthStretch, 170.0f);
+        ImGui::TableHeadersRow();
+
+        //显示所有 IMAGE_BASE_RELOCATION 信息
+        PIMAGE_BASE_RELOCATION pBaseRelocation= (PIMAGE_BASE_RELOCATION)(currentPE->fileReadBuffer + RvaToFoa(currentPE->relocaleDir->VirtualAddress));
+
+        int index = 0;
+        while (pBaseRelocation->VirtualAddress!=0)
+        {
+            CHAR arr[128] = { 0 };
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            sprintf_s(arr, sizeof(arr), "IMAGE_BASE_RELOCATION[%d]", index);
+            if (ImGui::Selectable(arr, selectedRelocationIndex == index,
+                ImGuiSelectableFlags_SpanAllColumns))
+            {
+                selectedRelocationIndex = index;
+            }
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("0x%08x", pBaseRelocation->VirtualAddress);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("0x%08x", pBaseRelocation->SizeOfBlock);
+
+            pBaseRelocation = (PIMAGE_BASE_RELOCATION)((PCHAR)pBaseRelocation + pBaseRelocation->SizeOfBlock);
+            index++;
+        }
+
+        ImGui::EndTable();
+    }
+    ImGui::EndChild();//上表结束
+
+    // ========== 下表：选中块的 entries（带滚动条） ==========
+    ImGui::BeginChild("RelocEntriesChild", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+    //找到所选中的 IMAGE_BASE_RELOCATION
+    PIMAGE_BASE_RELOCATION pBaseRelocation = (PIMAGE_BASE_RELOCATION)(currentPE->fileReadBuffer + RvaToFoa(currentPE->relocaleDir->VirtualAddress));
+    PIMAGE_BASE_RELOCATION selectedBaseRelocation = NULL;
+    for (int i = 0; i <= selectedRelocationIndex; i++)
+    {
+        selectedBaseRelocation = pBaseRelocation;
+        pBaseRelocation = (PIMAGE_BASE_RELOCATION)((PCHAR)pBaseRelocation + pBaseRelocation->SizeOfBlock);
+    }
+    ImGuiTableFlags bottomFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY |
+        ImGuiTableFlags_RowBg;
+
+    if (selectedBaseRelocation && ImGui::BeginTable("RelocationBlockEntrys", 3, bottomFlags))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1); // 冻结表头
+        ImGui::TableSetupColumn(u8"index", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn(u8"高4位(重定位类型)", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"低12位(重定位偏移量)", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
+        DWORD entryCount=(selectedBaseRelocation->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION))/sizeof(WORD);
+        PWORD pEntry = PWORD((PCHAR)selectedBaseRelocation + sizeof(IMAGE_BASE_RELOCATION));
+        for (size_t i = 0; i < entryCount; i++)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%u", i);
+            //高4位
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("0x%01x", ((*pEntry) & 0xf000) >> 12);
+            //低12位
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("0x%04x", (*pEntry) & 0x0fff);
+            pEntry++;
+        }
+
+        
+        ImGui::EndTable();
+    }
+    ImGui::EndChild();
+
+
+    ImGui::EndChild();
+}
+
 void App::DrawImportView()
 {
     ImGui::BeginChild("Import View");
     ImGui::Text("Import Information");
     ImGui::Separator();
 
-    if (ImGui::BeginTable("Import Table", 5, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
+
+    // 计算可用高度
+    float availY = ImGui::GetContentRegionAvail().y;
+    float gap = ImGui::GetStyle().ItemSpacing.y;
+
+    // 预留中间标题区域高度（Separator + Text + Spacing）
+    float midH = 0.0f;
+    midH += ImGui::GetFrameHeightWithSpacing(); // 大致按一行文字+spacing算
+    midH += ImGui::GetStyle().SeparatorTextBorderSize; // 可忽略，但保守一点
+    midH += gap; // 额外间距
+
+    // 把中间区域扣掉，再分配给上下表格
+    float remainY = availY - midH;
+    if (remainY < 200.0f) remainY = availY; // 太小就别扣了，避免负数
+
+    float topH = remainY * 0.45f;
+    float bottomH = remainY - topH;
+    if (bottomH < 100.0f) bottomH = 100.0f;
+
+
+    // ========== 上表  ========== 
+    ImGui::BeginChild("Import top window", ImVec2(0, topH), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+    ImGuiTableFlags topFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY;
+
+    if (ImGui::BeginTable("Import Table", 5, topFlags))
     {
-        ImGui::TableSetupColumn(u8"DLL Name", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
+        ImGui::TableSetupColumn(u8"DLL Name", ImGuiTableColumnFlags_WidthFixed, 200.0f);
         ImGui::TableSetupColumn(u8"OriginalFirstThunk", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableSetupColumn(u8"TimeDateStamp", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn(u8"ForwarderChain", ImGuiTableColumnFlags_WidthStretch);
@@ -377,6 +513,9 @@ void App::DrawImportView()
         
         ImGui::EndTable();
     }
+    ImGui::EndChild();// ========== 上表结束  ========== 
+
+
 
     PIMAGE_IMPORT_DESCRIPTOR selectedDescriptor = NULL;
 
@@ -394,10 +533,20 @@ void App::DrawImportView()
     ImGui::Separator();
     ImGui::Text("Imported Functions");
 
+    // ========== 下表  ========== 
+    ImGui::BeginChild("Import bottom window", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+    ImGuiTableFlags bottomFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY |
+        ImGuiTableFlags_RowBg;
+
     if (selectedDescriptor && ImGui::BeginTable("ImportFunctions", 2,
-        ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
+        bottomFlags))
     {
-        ImGui::TableSetupColumn(u8"Ordinal(序号)", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
+        ImGui::TableSetupColumn(u8"Ordinal(序号)", ImGuiTableColumnFlags_WidthFixed, 150);
         ImGui::TableSetupColumn(u8"Function Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
@@ -487,6 +636,9 @@ void App::DrawImportView()
 
         ImGui::EndTable();
     }
+    ImGui::EndChild();//====== 下表结束 ======
+
+
     ImGui::EndChild();
 }
 DWORD App::RvaToFoa(DWORD rva)
@@ -1005,6 +1157,15 @@ void App::DrawPETree()
         {
             currentView = View_Resource;
         }
+        ImGui::TreePop(); 
+    }
+
+    if (ImGui::TreeNodeEx("BaseRelocale", ImGuiTreeNodeFlags_Leaf))
+    {
+        if (ImGui::IsItemClicked())
+        {
+            currentView = View_BaseRelocale;
+        }
         ImGui::TreePop();
     }
 
@@ -1228,7 +1389,7 @@ void App::OpenFile()
             currentPE->exportDir = &pNTHeader64->OptionalHeader.DataDirectory[0];
             currentPE->importDir = &pNTHeader64->OptionalHeader.DataDirectory[1];
             currentPE->resourceDir = &pNTHeader64->OptionalHeader.DataDirectory[2];
-            currentPE->relocateDir = &pNTHeader64->OptionalHeader.DataDirectory[5];
+            currentPE->relocaleDir = &pNTHeader64->OptionalHeader.DataDirectory[5];
         }
         else if (currentPE->is64 == false && currentPE->pNtHeader32 != NULL && pNTHeader32 != NULL)
         {
@@ -1239,7 +1400,7 @@ void App::OpenFile()
             currentPE->exportDir = &pNTHeader32->OptionalHeader.DataDirectory[0];
             currentPE->importDir = &pNTHeader32->OptionalHeader.DataDirectory[1];
             currentPE->resourceDir = &pNTHeader32->OptionalHeader.DataDirectory[2];
-            currentPE->relocateDir = &pNTHeader32->OptionalHeader.DataDirectory[5];
+            currentPE->relocaleDir = &pNTHeader32->OptionalHeader.DataDirectory[5];
         }
 
         if (currentPE->sectionCount && pSectionHeader!=NULL)
@@ -1272,6 +1433,8 @@ void App::CloseFile()
     selectedResData.typeId = -1;
     selectedResData.resDataEntryRva = 0;
     selectedResData.dataSize = 0;
+    selectedImportIndex = -1;
+    selectedRelocationIndex = -1;
     // 关闭当前PE相关的内存
     if (currentPE)
     {

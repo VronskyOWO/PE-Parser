@@ -22,7 +22,7 @@ struct PEFile
 	PIMAGE_DATA_DIRECTORY importDir{};
 	PIMAGE_DATA_DIRECTORY exportDir{};
 	PIMAGE_DATA_DIRECTORY resourceDir{};
-	PIMAGE_DATA_DIRECTORY relocateDir{};
+	PIMAGE_DATA_DIRECTORY relocaleDir{};
 
 	bool is64 = false;
 };

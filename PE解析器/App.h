@@ -14,7 +14,8 @@ enum ViewType
 	View_Sections,
 	View_Import,
 	View_Export,
-	View_Resource
+	View_Resource,
+	View_BaseRelocale,
 };
 struct MachineType
 {
@@ -42,6 +43,7 @@ private:
 	SelectedResData selectedResData{};
 	int currentResTypeId = -1;
 	int selectedImportIndex = -1;
+	int selectedRelocationIndex = -1;
 	ViewType currentView= View_None;
 	PEFile* currentPE;
 	void DrawDOSHeaderView();
@@ -53,6 +55,7 @@ private:
 	void DrawImportView();
 	void DrawResourceView();
 	void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
+	void DrawBaseRelocaleView();
 	void DrawMenuBar();
 	void OpenFile();     // ÉùÃ÷
 	void CloseFile();    // ÉùÃ÷
