@@ -18,11 +18,7 @@ enum ViewType
 	View_Resource,
 	View_BaseRelocale,
 };
-struct MachineType
-{
-	WORD value;
-	const char* description;
-};
+
 
 struct SelectedResData
 {

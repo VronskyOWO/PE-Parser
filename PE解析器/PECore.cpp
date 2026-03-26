@@ -1,4 +1,41 @@
 #include "PECore.h"
+
+static MachineType g_MachineTypes[] =
+{
+	{0x0,    u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前假定此字段的内容适用于任何计算机类型"},
+	{0x184,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Alpha AXP，32 位地址空间"},
+	{0x284,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Alpha 64/AXP 64，64 位地址空间"},
+	{0x1d3,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Matsushita AM33"},
+	{0x8664, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:x64"},
+	{0x1c0,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM little endian"},
+	{0xaa64, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM64 little endian"},
+	{0x1c4,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM Thumb-2 little endian"},
+	{0xebc,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:EFI Byte Code"},
+	{0x14c,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Intel 386 或更高版本的处理器和兼容的处理器"},
+	{0x200,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Intel Itanium 处理器系列"},
+	{0x6232, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:LoongArch 32 位处理器系列"},
+	{0x6264, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:LoongArch 64 位处理器系列"},
+	{0x9041, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:三菱 M32R 小 endian"},
+	{0x266, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS16"},
+	{0x366, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:将 MIPS 与 FPU 结合使用"},
+	{0x466, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:将 MIPS16 与 FPU 结合使用"},
+	{0x1f0, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Power PC 小 endian"},
+	{0x1f1, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:支持浮点的 Power PC"},
+	{0x160, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS I 兼容 32 位大尾号"},
+	{0x162, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS I 兼容 32 位小 endian"},
+	{0x166, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS III 兼容的 64 位小 endian"},
+	{0x168, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS IV 兼容 64 位小 endian"},
+	{0x168, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS IV 兼容 64 位小 endian"},
+	{0x5032, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:RISC-V 32 位地址空间"},
+	{0x5064, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:RISC-V 64 位地址空间"},
+	{0x5128, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:RISC-V 128 位地址空间"},
+	{0x1a2, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH3"},
+	{0x1a3, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH3 DSP"},
+	{0x1a6, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH4"},
+	{0x1a8, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH5"},
+	{0x1c2, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM Thumb/Thumb-2 Little-Endian"},
+	{0x169, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS little-endian WCE v2"},
+};
 BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 {
 	CloseFile();
@@ -130,6 +167,51 @@ NtSignatureData PECore::GetNtSignatureData()
 	if (currentFile.is64) return { u8"Signature", ToHex(currentFile.pNtHeader64->Signature,8), u8"一个签名,标识该文件为 PE 格式映像文件" };
 	else return { u8"Signature", ToHex(currentFile.pNtHeader32->Signature,8), u8"一个签名,标识该文件为 PE 格式映像文件" };
 }
+std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
+{
+	std::vector<DosHeaderData> data{};
+
+	if (currentFile.is64)
+	{
+#define ADD_WORD(field, desc) \
+    data.push_back({#field, ToHex(currentFile.pNtHeader64->FileHeader.field, 4), desc});
+
+#define ADD_DWORD(field, desc) \
+    data.push_back({#field, ToHex(currentFile.pNtHeader64->FileHeader.field, 8), desc});
+
+		ADD_WORD(Machine, GetMachineType(currentFile.pNtHeader64->FileHeader.Machine)->description)
+		ADD_WORD(NumberOfSections, u8"Section(节)的数量")
+		ADD_DWORD(TimeDateStamp, u8"此PE的创建时间")
+		ADD_DWORD(PointerToSymbolTable, u8"COFF 符号表的文件偏移量")
+		ADD_DWORD(NumberOfSymbols, u8"符号表中的项数")
+		ADD_WORD(SizeOfOptionalHeader, u8"OptionalHeader的大小。但对象文件不需要它。 对于对象文件，此值应为零。")
+		ADD_WORD(Characteristics, u8"指示文件属性的标志")
+
+#undef ADD_DWORD
+#undef ADD_WORD
+	}
+	else
+	{
+#define ADD_WORD(field, desc) \
+    data.push_back({#field, ToHex(currentFile.pNtHeader32->FileHeader.field, 4), desc});
+
+#define ADD_DWORD(field, desc) \
+    data.push_back({#field, ToHex(currentFile.pNtHeader32->FileHeader.field, 8), desc});
+
+		ADD_WORD(Machine, GetMachineType(currentFile.pNtHeader32->FileHeader.Machine)->description)
+			ADD_WORD(NumberOfSections, u8"Section(节)的数量")
+			ADD_DWORD(TimeDateStamp, u8"此PE的创建时间")
+			ADD_DWORD(PointerToSymbolTable, u8"COFF 符号表的文件偏移量")
+			ADD_DWORD(NumberOfSymbols, u8"符号表中的项数")
+			ADD_WORD(SizeOfOptionalHeader, u8"OptionalHeader的大小。但对象文件不需要它。 对于对象文件，此值应为零。")
+			ADD_WORD(Characteristics, u8"指示文件属性的标志")
+
+#undef ADD_DWORD
+#undef ADD_WORD
+	}
+
+	return data;
+}
 void PECore::CloseFile()
 {
 	currentFile.filePath = {};
@@ -169,4 +251,16 @@ PECore::~PECore()
 
 PECore::PECore()
 {
+}
+
+
+const MachineType* PECore::GetMachineType(WORD machine)
+{
+	for (auto& m : g_MachineTypes)
+	{
+		if (m.value == machine)
+			return &m;
+	}
+
+	return nullptr;
 }

@@ -9,6 +9,11 @@ struct BaseData
 	std::string value{};
 	std::string descriptor{};
 };
-
+struct MachineType
+{
+	WORD value;
+	const char* description;
+};
 using DosHeaderData = BaseData;
 using NtSignatureData = BaseData;
+using NtFileHeaderData = BaseData;
