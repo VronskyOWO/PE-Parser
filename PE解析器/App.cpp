@@ -1,4 +1,6 @@
 #include "App.h"
+
+extern PECore peCore;
 void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow = 16);
 static MachineType g_MachineTypes[] =
 {
@@ -76,7 +78,7 @@ void App::DrawPEView()
 
     ImGui::Separator();
     // 检查是否有PE文件加载
-    if (!currentPE || !currentPE->pDosHeader)
+    if (!peCore.GetOpenStatus())
     {
         ImGui::TextColored(ImVec4(1, 1, 0, 1), u8"请先打开PE文件");
         ImGui::EndChild();
@@ -1265,169 +1267,18 @@ void App::OpenFile()
         "UEFI Files (*.efi)\0*.efi\0"
         "All Files (*.*)\0*.*\0";
 
-
+    std::wstring log{};
 
 
     ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
     if (GetOpenFileNameA(&ofn))
     {
-        HANDLE hFile=CreateFileA(ofn.lpstrFile, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (hFile == INVALID_HANDLE_VALUE)
+        BOOLEAN res2=peCore.OpenFile(ofn.lpstrFile, log);
+        if (!res2)
         {
-            MessageBoxA(0, "CreateFile failed", 0, 0);
-            return;
+            MessageBoxW(0, log.c_str(), 0, 0);
         }
-
-        LARGE_INTEGER fileSize;
-        if (!GetFileSizeEx(hFile, &fileSize))
-        {
-            MessageBoxA(0, "GetFileSizeEx failed", 0, 0);
-            CloseHandle(hFile);
-            return;
-        }
-        DWORD size = (DWORD)fileSize.QuadPart;
-        currentPE->fileReadBuffer = (PCHAR)VirtualAlloc(NULL, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-        if (!currentPE->fileReadBuffer)
-        {
-            MessageBoxA(0, "VirtualAlloc failed", 0, 0);
-            CloseHandle(hFile);
-            return;
-        }
-
-        DWORD readBytesInFact = 0;
-        BOOL res=ReadFile(hFile, currentPE->fileReadBuffer, size, &readBytesInFact, NULL);
-        if (!res)
-        {
-            CloseHandle(hFile);
-            this->CloseFile();
-            MessageBoxA(0, "ReadFile failed", 0, 0);
-            return;
-        }
-        if (!res || readBytesInFact != size)
-        {
-            MessageBoxA(0, "ReadFile failed or read size mismatch", 0, 0);
-            this->CloseFile();
-            CloseHandle(hFile);
-            return;
-        }
-
-        //is PE?
-        PIMAGE_DOS_HEADER pDosHeader = (PIMAGE_DOS_HEADER)currentPE->fileReadBuffer;
-        PIMAGE_NT_HEADERS pNTHeader = PIMAGE_NT_HEADERS((PCHAR)pDosHeader + pDosHeader->e_lfanew);
-        if (pDosHeader->e_magic != IMAGE_DOS_SIGNATURE)
-        {
-            CloseHandle(hFile);
-            this->CloseFile();
-            MessageBoxA(0, "非标准PE文件", 0, 0);
-            return;
-        }
-        if (pNTHeader->Signature != IMAGE_NT_SIGNATURE)
-        {
-            CloseHandle(hFile);
-            this->CloseFile();
-            MessageBoxA(0, "非标准PE文件", 0, 0);
-            return;
-        }
-
-        
-        //alloc memory
-        currentPE->pDosHeader = (PIMAGE_DOS_HEADER)VirtualAlloc(NULL, sizeof(IMAGE_DOS_HEADER), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-        if (!currentPE->pDosHeader)
-        {
-            CloseHandle(hFile);
-            this->CloseFile();
-            MessageBoxA(0, "VirtualAlloc failed", 0, 0);
-            return;
-        }
-        
-        //DOS
-        RtlCopyMemory(currentPE->pDosHeader, pDosHeader, sizeof(IMAGE_DOS_HEADER));
-
-        
-        PIMAGE_NT_HEADERS64 pNTHeader64 = NULL;
-        PIMAGE_NT_HEADERS32 pNTHeader32 = NULL;
-        PIMAGE_SECTION_HEADER pSectionHeader = NULL;
-        //NT
-        if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
-        {
-            //64位PE
-            currentPE->is64 = true;
-            //alloc memory
-            currentPE->pNtHeader64 = (PIMAGE_NT_HEADERS64)VirtualAlloc(NULL, sizeof(IMAGE_NT_HEADERS64), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-            if (!currentPE->pNtHeader64)
-            {
-                CloseHandle(hFile);
-                this->CloseFile();
-                MessageBoxA(0, "IMAGE_NT_HEADERS64: VirtualAlloc failed", 0, 0);
-                return;
-            }
-            pNTHeader64 = PIMAGE_NT_HEADERS64((PCHAR)pDosHeader + pDosHeader->e_lfanew);
-            pSectionHeader =PIMAGE_SECTION_HEADER((PCHAR)&pNTHeader64->OptionalHeader + pNTHeader64->FileHeader.SizeOfOptionalHeader);
-        }
-        else if(pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
-        {
-            //32位PE
-            currentPE->is64 = false;
-            //alloc memory
-            currentPE->pNtHeader32 = (PIMAGE_NT_HEADERS32)VirtualAlloc(NULL, sizeof(IMAGE_NT_HEADERS32), MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-            if (!currentPE->pNtHeader32)
-            {
-                CloseHandle(hFile);
-                this->CloseFile();
-                MessageBoxA(0, "IMAGE_NT_HEADERS32: VirtualAlloc failed", 0, 0);
-                return;
-            }
-            pNTHeader32 = PIMAGE_NT_HEADERS32((PCHAR)pDosHeader + pDosHeader->e_lfanew);
-            pSectionHeader = PIMAGE_SECTION_HEADER((PCHAR)&pNTHeader32->OptionalHeader + pNTHeader32->FileHeader.SizeOfOptionalHeader);
-        }
-        else if(pNTHeader->OptionalHeader.Magic == IMAGE_ROM_OPTIONAL_HDR_MAGIC)
-        {
-            //ROM映像
-        }
-
-        if (currentPE->is64 == true && currentPE->pNtHeader64!=NULL && pNTHeader64!=NULL)
-        {
-            currentPE->pNtHeader64->Signature = pNTHeader64->Signature;
-            currentPE->pNtHeader64->FileHeader = pNTHeader64->FileHeader;
-            currentPE->pNtHeader64->OptionalHeader = pNTHeader64->OptionalHeader;
-            currentPE->sectionCount = pNTHeader64->FileHeader.NumberOfSections;
-            currentPE->exportDir = &pNTHeader64->OptionalHeader.DataDirectory[0];
-            currentPE->importDir = &pNTHeader64->OptionalHeader.DataDirectory[1];
-            currentPE->resourceDir = &pNTHeader64->OptionalHeader.DataDirectory[2];
-            currentPE->relocaleDir = &pNTHeader64->OptionalHeader.DataDirectory[5];
-        }
-        else if (currentPE->is64 == false && currentPE->pNtHeader32 != NULL && pNTHeader32 != NULL)
-        {
-            currentPE->pNtHeader32->Signature = pNTHeader32->Signature;
-            currentPE->pNtHeader32->FileHeader = pNTHeader32->FileHeader;
-            currentPE->pNtHeader32->OptionalHeader = pNTHeader32->OptionalHeader;
-            currentPE->sectionCount = pNTHeader32->FileHeader.NumberOfSections;
-            currentPE->exportDir = &pNTHeader32->OptionalHeader.DataDirectory[0];
-            currentPE->importDir = &pNTHeader32->OptionalHeader.DataDirectory[1];
-            currentPE->resourceDir = &pNTHeader32->OptionalHeader.DataDirectory[2];
-            currentPE->relocaleDir = &pNTHeader32->OptionalHeader.DataDirectory[5];
-        }
-
-        if (currentPE->sectionCount && pSectionHeader!=NULL)
-        {
-            //alloc memory
-            currentPE->sectionHeaders = (PIMAGE_SECTION_HEADER)VirtualAlloc(NULL, IMAGE_SIZEOF_SECTION_HEADER*currentPE->sectionCount, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
-            if (!currentPE->sectionHeaders)
-            {
-                CloseHandle(hFile);
-                this->CloseFile();
-                MessageBoxA(0, "currentPE->sectionHeaders: VirtualAlloc failed", 0, 0);
-                return;
-            }
-            for (size_t i = 0; i < currentPE->sectionCount; i++)
-            {
-                currentPE->sectionHeaders[i] = pSectionHeader[i];
-            }
-        }
-
-        //free
         currentView = View_DOS;
-        CloseHandle(hFile);
     }
     
 }
@@ -1440,36 +1291,10 @@ void App::CloseFile()
     selectedResData.dataSize = 0;
     selectedImportIndex = -1;
     selectedRelocationIndex = -1;
-    // 关闭当前PE相关的内存
-    if (currentPE)
-    {
-        // 释放已分配的内存
-        if (currentPE->pDosHeader)
-        {
-            VirtualFree(currentPE->pDosHeader, 0, MEM_RELEASE);
-            currentPE->pDosHeader = NULL;
-        }
-        if (currentPE->pNtHeader32)
-        {
-            VirtualFree(currentPE->pNtHeader32, 0, MEM_RELEASE);
-            currentPE->pNtHeader32 = NULL;
-        }
-        if (currentPE->pNtHeader64)
-        {
-            VirtualFree(currentPE->pNtHeader64, 0, MEM_RELEASE);
-            currentPE->pNtHeader64 = NULL;
-        }
-        if (currentPE->sectionHeaders)
-        {
-            VirtualFree(currentPE->sectionHeaders, 0, MEM_RELEASE);
-            currentPE->sectionHeaders = NULL;
-        }
-        if (currentPE->fileReadBuffer)
-        {
-            VirtualFree(currentPE->fileReadBuffer, 0, MEM_RELEASE);
-            currentPE->fileReadBuffer = NULL;
-        }
-    }
+
+    
+    peCore.CloseFile();         
+
     currentView = View_None;
 }
 
@@ -1521,12 +1346,13 @@ void App::SetDarkTheme()
 
 void App::DrawDOSHeaderView()
 {
+    std::vector<DosHeaderData> data = peCore.GetDosHeaderData();
     ImGui::BeginChild("DOS Header View");
 
     ImGui::Text("DOS Header Information");
     ImGui::Separator();
 
-    if (ImGui::BeginTable("DOSHeaderTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
+    if (ImGui::BeginTable("DOSHeaderTable", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable| ImGuiTableFlags_RowBg))
     {
         ImGui::TableSetupColumn("Field", ImGuiTableColumnFlags_WidthFixed, 150.0f);
         ImGui::TableSetupColumn("Value", ImGuiTableColumnFlags_WidthFixed, 100.0f);
@@ -1536,64 +1362,75 @@ void App::DrawDOSHeaderView()
 
         auto* dos = currentPE->pDosHeader;
 
+        for (size_t i = 0; i < data.size(); i++)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text(data[i].field.c_str());
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text(data[i].value.c_str());
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text(data[i].descriptor.c_str());
+        }
+
         // 使用 %04x 来确保显示4位十六进制（包括前导零）
-#define ADD_ROW(field, desc) \
-            ImGui::TableNextRow(); \
-            ImGui::TableSetColumnIndex(0); \
-            ImGui::Text(#field); \
-            ImGui::TableSetColumnIndex(1); \
-            ImGui::Text("0x%04x", dos->field); \
-            ImGui::TableSetColumnIndex(2); \
-            ImGui::Text("%s", desc);
-
-        ADD_ROW(e_magic, u8"[Magic number,就是一个标记]");
-        ADD_ROW(e_cblp, "[Bytes on last page of file]");
-        ADD_ROW(e_cp, "[Pages in file]");
-        ADD_ROW(e_crlc, "[Relocations]");
-        ADD_ROW(e_cparhdr, "[Size of header in paragraphs]");
-        ADD_ROW(e_minalloc, "[Minimum extra paragraphs needed]");
-        ADD_ROW(e_maxalloc, "[Maximum extra paragraphs needed]");
-        ADD_ROW(e_ss, "[Initial (relative) SS value]");
-        ADD_ROW(e_sp, "[Initial SP value]");
-        ADD_ROW(e_csum, "[Checksum]");
-        ADD_ROW(e_ip, "[Initial IP value]");
-        ADD_ROW(e_cs, "[Initial (relative) CS value]");
-        ADD_ROW(e_lfarlc, "[File address of relocation table]");
-        ADD_ROW(e_ovno, "[Overlay number]");
-        // e_res[4]
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::Text("e_res[4]");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("0x%04x 0x%04x 0x%04x 0x%04x",
-            dos->e_res[0], dos->e_res[1], dos->e_res[2], dos->e_res[3]);
-        ImGui::TableSetColumnIndex(2);
-        ImGui::Text(u8"[Reserved words。保留，必须为0]");
-
-        ADD_ROW(e_oemid, "[OEM identifier (for e_oeminfo)]");
-        ADD_ROW(e_oeminfo, "[OEM information; e_oemid specific]");
-
-        // e_res2[10]
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::Text("e_res2[10]");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x",
-            dos->e_res2[0], dos->e_res2[1], dos->e_res2[2], dos->e_res2[3], dos->e_res2[4],
-            dos->e_res2[5], dos->e_res2[6], dos->e_res2[7], dos->e_res2[8], dos->e_res2[9]);
-        ImGui::TableSetColumnIndex(2);
-        ImGui::Text(u8"[Reserved words。保留，必须为0]");
-
-
-        ImGui::TableNextRow();
-        ImGui::TableSetColumnIndex(0);
-        ImGui::Text("e_lfanew");
-        ImGui::TableSetColumnIndex(1);
-        ImGui::Text("0x%08x", dos->e_lfanew);
-        ImGui::TableSetColumnIndex(2);
-        ImGui::Text(u8"[File address of new exe header。NT Header的文件地址=文件头+e_lfanew]");
-
-#undef ADD_ROW
+//#define ADD_ROW(field, desc) \
+//            ImGui::TableNextRow(); \
+//            ImGui::TableSetColumnIndex(0); \
+//            ImGui::Text(#field); \
+//            ImGui::TableSetColumnIndex(1); \
+//            ImGui::Text("0x%04x", dos->field); \
+//            ImGui::TableSetColumnIndex(2); \
+//            ImGui::Text("%s", desc);
+//
+//        ADD_ROW(e_magic, u8"[Magic number,就是一个标记]");
+//        ADD_ROW(e_cblp, "[Bytes on last page of file]");
+//        ADD_ROW(e_cp, "[Pages in file]");
+//        ADD_ROW(e_crlc, "[Relocations]");
+//        ADD_ROW(e_cparhdr, "[Size of header in paragraphs]");
+//        ADD_ROW(e_minalloc, "[Minimum extra paragraphs needed]");
+//        ADD_ROW(e_maxalloc, "[Maximum extra paragraphs needed]");
+//        ADD_ROW(e_ss, "[Initial (relative) SS value]");
+//        ADD_ROW(e_sp, "[Initial SP value]");
+//        ADD_ROW(e_csum, "[Checksum]");
+//        ADD_ROW(e_ip, "[Initial IP value]");
+//        ADD_ROW(e_cs, "[Initial (relative) CS value]");
+//        ADD_ROW(e_lfarlc, "[File address of relocation table]");
+//        ADD_ROW(e_ovno, "[Overlay number]");
+//        // e_res[4]
+//        ImGui::TableNextRow();
+//        ImGui::TableSetColumnIndex(0);
+//        ImGui::Text("e_res[4]");
+//        ImGui::TableSetColumnIndex(1);
+//        ImGui::Text("0x%04x 0x%04x 0x%04x 0x%04x",
+//            dos->e_res[0], dos->e_res[1], dos->e_res[2], dos->e_res[3]);
+//        ImGui::TableSetColumnIndex(2);
+//        ImGui::Text(u8"[Reserved words。保留，必须为0]");
+//
+//        ADD_ROW(e_oemid, "[OEM identifier (for e_oeminfo)]");
+//        ADD_ROW(e_oeminfo, "[OEM information; e_oemid specific]");
+//
+//        // e_res2[10]
+//        ImGui::TableNextRow();
+//        ImGui::TableSetColumnIndex(0);
+//        ImGui::Text("e_res2[10]");
+//        ImGui::TableSetColumnIndex(1);
+//        ImGui::Text("0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x",
+//            dos->e_res2[0], dos->e_res2[1], dos->e_res2[2], dos->e_res2[3], dos->e_res2[4],
+//            dos->e_res2[5], dos->e_res2[6], dos->e_res2[7], dos->e_res2[8], dos->e_res2[9]);
+//        ImGui::TableSetColumnIndex(2);
+//        ImGui::Text(u8"[Reserved words。保留，必须为0]");
+//
+//
+//        ImGui::TableNextRow();
+//        ImGui::TableSetColumnIndex(0);
+//        ImGui::Text("e_lfanew");
+//        ImGui::TableSetColumnIndex(1);
+//        ImGui::Text("0x%08x", dos->e_lfanew);
+//        ImGui::TableSetColumnIndex(2);
+//        ImGui::Text(u8"[File address of new exe header。NT Header的文件地址=文件头+e_lfanew]");
+//
+//#undef ADD_ROW
 
         ImGui::EndTable();
     }

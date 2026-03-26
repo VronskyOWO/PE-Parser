@@ -13,6 +13,7 @@
 #include <d3d11.h>
 #include <tchar.h>
 #include "App.h"
+#include "PECore.h"
 // Data
 static ID3D11Device*            g_pd3dDevice = nullptr;
 static ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
@@ -30,6 +31,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 
 App app{};
+PECore peCore{};
 // Main code
 int  WinMain( HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR  lpCmdLine,int nShowCmd)
 {

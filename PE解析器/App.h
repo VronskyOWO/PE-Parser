@@ -4,6 +4,7 @@
 #include <Windows.h>
 #include <commdlg.h>
 #include "PEFile.h"
+#include "PECore.h"
 enum ViewType
 {
 	View_None,
