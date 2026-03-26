@@ -1373,64 +1373,6 @@ void App::DrawDOSHeaderView()
             ImGui::Text(data[i].descriptor.c_str());
         }
 
-        // 使用 %04x 来确保显示4位十六进制（包括前导零）
-//#define ADD_ROW(field, desc) \
-//            ImGui::TableNextRow(); \
-//            ImGui::TableSetColumnIndex(0); \
-//            ImGui::Text(#field); \
-//            ImGui::TableSetColumnIndex(1); \
-//            ImGui::Text("0x%04x", dos->field); \
-//            ImGui::TableSetColumnIndex(2); \
-//            ImGui::Text("%s", desc);
-//
-//        ADD_ROW(e_magic, u8"[Magic number,就是一个标记]");
-//        ADD_ROW(e_cblp, "[Bytes on last page of file]");
-//        ADD_ROW(e_cp, "[Pages in file]");
-//        ADD_ROW(e_crlc, "[Relocations]");
-//        ADD_ROW(e_cparhdr, "[Size of header in paragraphs]");
-//        ADD_ROW(e_minalloc, "[Minimum extra paragraphs needed]");
-//        ADD_ROW(e_maxalloc, "[Maximum extra paragraphs needed]");
-//        ADD_ROW(e_ss, "[Initial (relative) SS value]");
-//        ADD_ROW(e_sp, "[Initial SP value]");
-//        ADD_ROW(e_csum, "[Checksum]");
-//        ADD_ROW(e_ip, "[Initial IP value]");
-//        ADD_ROW(e_cs, "[Initial (relative) CS value]");
-//        ADD_ROW(e_lfarlc, "[File address of relocation table]");
-//        ADD_ROW(e_ovno, "[Overlay number]");
-//        // e_res[4]
-//        ImGui::TableNextRow();
-//        ImGui::TableSetColumnIndex(0);
-//        ImGui::Text("e_res[4]");
-//        ImGui::TableSetColumnIndex(1);
-//        ImGui::Text("0x%04x 0x%04x 0x%04x 0x%04x",
-//            dos->e_res[0], dos->e_res[1], dos->e_res[2], dos->e_res[3]);
-//        ImGui::TableSetColumnIndex(2);
-//        ImGui::Text(u8"[Reserved words。保留，必须为0]");
-//
-//        ADD_ROW(e_oemid, "[OEM identifier (for e_oeminfo)]");
-//        ADD_ROW(e_oeminfo, "[OEM information; e_oemid specific]");
-//
-//        // e_res2[10]
-//        ImGui::TableNextRow();
-//        ImGui::TableSetColumnIndex(0);
-//        ImGui::Text("e_res2[10]");
-//        ImGui::TableSetColumnIndex(1);
-//        ImGui::Text("0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x 0x%04x",
-//            dos->e_res2[0], dos->e_res2[1], dos->e_res2[2], dos->e_res2[3], dos->e_res2[4],
-//            dos->e_res2[5], dos->e_res2[6], dos->e_res2[7], dos->e_res2[8], dos->e_res2[9]);
-//        ImGui::TableSetColumnIndex(2);
-//        ImGui::Text(u8"[Reserved words。保留，必须为0]");
-//
-//
-//        ImGui::TableNextRow();
-//        ImGui::TableSetColumnIndex(0);
-//        ImGui::Text("e_lfanew");
-//        ImGui::TableSetColumnIndex(1);
-//        ImGui::Text("0x%08x", dos->e_lfanew);
-//        ImGui::TableSetColumnIndex(2);
-//        ImGui::Text(u8"[File address of new exe header。NT Header的文件地址=文件头+e_lfanew]");
-//
-//#undef ADD_ROW
 
         ImGui::EndTable();
     }
