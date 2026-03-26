@@ -4,7 +4,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 	CloseFile();
 
 	//file mapping
-	hCurrentFileHandle=CreateFileA(filePath, GENERIC_READ| GENERIC_WRITE, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	hCurrentFileHandle=CreateFileA(filePath, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 	if (hCurrentFileHandle == INVALID_HANDLE_VALUE)
 	{	
 		DWORD errorCode = GetLastError();
@@ -13,7 +13,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		return FALSE;
 	}
 	SECURITY_ATTRIBUTES sa = {0};
-	hCurrentFileMappingObj =CreateFileMappingA(hCurrentFileHandle, NULL, PAGE_READWRITE, 0, 0, NULL);
+	hCurrentFileMappingObj =CreateFileMappingA(hCurrentFileHandle, NULL, PAGE_READONLY, 0, 0, NULL);
 	if (!hCurrentFileMappingObj)
 	{
 		DWORD errorCode = GetLastError();
@@ -21,7 +21,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		logInfo = { L"CreateFileMapping failed" };
 		return FALSE;
 	}
-	pCurrentAddrOfFileView =MapViewOfFile(hCurrentFileMappingObj, FILE_MAP_ALL_ACCESS, 0, 0, 0);
+	pCurrentAddrOfFileView =MapViewOfFile(hCurrentFileMappingObj, FILE_MAP_READ, 0, 0, 0);
 	if (!pCurrentAddrOfFileView)
 	{
 		DWORD errorCode = GetLastError();
@@ -42,7 +42,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 	PIMAGE_NT_HEADERS pNTHeader = PIMAGE_NT_HEADERS((PCHAR)currentFile.pDosHeader + currentFile.pDosHeader->e_lfanew);
 	if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR64_MAGIC)
 	{
-		//64位PE
+		//x64
 		currentFile.is64 = true;
 		currentFile.pNtHeader64 = PIMAGE_NT_HEADERS64((PCHAR)currentFile.pDosHeader + currentFile.pDosHeader->e_lfanew);
 		currentFile.sectionHeaders = PIMAGE_SECTION_HEADER((PCHAR)&currentFile.pNtHeader64->OptionalHeader + currentFile.pNtHeader64->FileHeader.SizeOfOptionalHeader);
@@ -54,6 +54,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
 	{
+		//x32
 		currentFile.is64 = false;
 		currentFile.pNtHeader32 = PIMAGE_NT_HEADERS32((PCHAR)currentFile.pDosHeader + currentFile.pDosHeader->e_lfanew);
 		currentFile.sectionHeaders = PIMAGE_SECTION_HEADER((PCHAR)&currentFile.pNtHeader32->OptionalHeader + currentFile.pNtHeader32->FileHeader.SizeOfOptionalHeader);
@@ -122,6 +123,12 @@ std::vector<DosHeaderData> PECore::GetDosHeaderData()
 #undef ADD_WORD
 
 	return data;
+}
+
+NtSignatureData PECore::GetNtSignatureData()
+{
+	if (currentFile.is64) return { u8"Signature", ToHex(currentFile.pNtHeader64->Signature,8), u8"一个签名,标识该文件为 PE 格式映像文件" };
+	else return { u8"Signature", ToHex(currentFile.pNtHeader32->Signature,8), u8"一个签名,标识该文件为 PE 格式映像文件" };
 }
 void PECore::CloseFile()
 {

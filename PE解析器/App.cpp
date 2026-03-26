@@ -1047,6 +1047,7 @@ void App::DrawNtFileHeaderView()
 }
 void App::DrawNtSignatureView()
 {
+    NtSignatureData sign= peCore.GetNtSignatureData();
     ImGui::BeginChild("NT Signature  View");
 
     ImGui::Text("NT_Header.Signature Information");
@@ -1060,16 +1061,13 @@ void App::DrawNtSignatureView()
 
         ImGui::TableHeadersRow();
 
-        PVOID pNtHeader = NULL;
-        if (currentPE->is64)pNtHeader = currentPE->pNtHeader64;
-        else pNtHeader = currentPE->pNtHeader32;
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
-        ImGui::Text("Signature");
+        ImGui::Text("%s",sign.field.c_str());
         ImGui::TableSetColumnIndex(1);
-        ImGui::Text("0x%08x", ((PIMAGE_NT_HEADERS)pNtHeader)->Signature);
+        ImGui::Text("%s", sign.value.c_str());
         ImGui::TableSetColumnIndex(2);
-        ImGui::Text(u8"一个签名,标识该文件为 PE 格式映像文件");
+        ImGui::Text("%s",sign.descriptor.c_str());
 
         ImGui::EndTable();
     }

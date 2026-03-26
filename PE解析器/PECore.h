@@ -11,6 +11,7 @@ class PECore
 public:
 	BOOLEAN OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo);
 	std::vector<DosHeaderData> GetDosHeaderData();
+	NtSignatureData GetNtSignatureData();
 	void CloseFile();
 	BOOLEAN GetOpenStatus();
 	PECore();
