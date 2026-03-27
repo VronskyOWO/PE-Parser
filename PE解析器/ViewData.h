@@ -7,7 +7,7 @@ struct BaseData
 {
 	std::string field{};
 	std::string value{};
-	std::string descriptor{};
+	std::string description{};
 };
 struct MachineType
 {
@@ -17,3 +17,17 @@ struct MachineType
 using DosHeaderData = BaseData;
 using NtSignatureData = BaseData;
 using NtFileHeaderData = BaseData;
+
+struct DataDirectoryEntryData
+{
+	std::string virtualAddress{};
+	std::string size{};
+	std::string description{};
+};
+
+struct OptionalHeaderData
+{
+	std::vector<BaseData> baseField{};
+	std::vector<DataDirectoryEntryData> DataDirectory{};
+};
+

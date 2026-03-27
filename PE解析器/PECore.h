@@ -14,6 +14,7 @@ public:
 	std::vector<DosHeaderData> GetDosHeaderData();
 	NtSignatureData GetNtSignatureData();
 	std::vector <NtFileHeaderData> GetNtFileHeaderData();
+	OptionalHeaderData GetNtOptionalHeaderData();
 	void CloseFile();
 	BOOLEAN GetOpenStatus();
 	PECore();

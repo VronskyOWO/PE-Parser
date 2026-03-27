@@ -212,6 +212,143 @@ std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
 
 	return data;
 }
+OptionalHeaderData PECore::GetNtOptionalHeaderData()
+{
+	std::vector<std::string> dataDirectoryEntryDesc{
+	u8"Export table address and size",
+	u8"Import table address and size",
+	u8"Resource table address and size",
+	u8"Exception table address and size",
+	u8"Certificate table address and size",
+	u8"Base relocation table address and size",
+	u8"Debugging information starting address and size",
+	u8"Architecture-specific data address and size",
+	u8"Global pointer register relative virtual address",
+	u8"Thread local storage (TLS) table address and size",
+	u8"Load configuration table address and size",
+	u8"Bound import table address and size",
+	u8"Import address table(IAT) address and size",
+	u8"Delay import descriptor address and size",
+	u8"The CLR header address and size",
+	u8"Reserved"
+	};
+	OptionalHeaderData data{};
+	if (currentFile.is64)
+	{
+#define ADD_BYTE(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader64->OptionalHeader.field, 2), desc});
+
+#define ADD_WORD(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader64->OptionalHeader.field, 4), desc});
+
+#define ADD_DWORD(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader64->OptionalHeader.field, 8), desc});
+
+#define ADD_QWORD(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader64->OptionalHeader.field, 16), desc});
+
+#define ADD_DATA_DIRECTORY_ENTRY(i, desc) \
+    data.DataDirectory.push_back({ToHex(currentFile.pNtHeader64->OptionalHeader.DataDirectory[i].VirtualAddress, 8), ToHex(currentFile.pNtHeader64->OptionalHeader.DataDirectory[i].Size, 8), desc});
+
+			ADD_WORD(Magic, u8"")
+			ADD_BYTE(MajorLinkerVersion, u8"")
+			ADD_BYTE(MinorLinkerVersion, u8"")
+			ADD_DWORD(SizeOfCode, u8"")
+			ADD_DWORD(SizeOfInitializedData, u8"")
+			ADD_DWORD(SizeOfUninitializedData, u8"")
+			ADD_DWORD(AddressOfEntryPoint, u8"")
+			ADD_DWORD(BaseOfCode, u8"")
+			ADD_QWORD(ImageBase, u8"")
+			ADD_DWORD(SectionAlignment, u8"")
+			ADD_DWORD(FileAlignment, u8"")
+			ADD_WORD(MajorOperatingSystemVersion, u8"")
+			ADD_WORD(MinorOperatingSystemVersion, u8"")
+			ADD_WORD(MajorImageVersion, u8"")
+			ADD_WORD(MinorImageVersion, u8"")
+			ADD_WORD(MajorSubsystemVersion, u8"")
+			ADD_WORD(MinorSubsystemVersion, u8"")
+			ADD_DWORD(Win32VersionValue, u8"")
+			ADD_DWORD(SizeOfImage, u8"")
+			ADD_DWORD(SizeOfHeaders, u8"")
+			ADD_DWORD(CheckSum, u8"")
+			ADD_WORD(Subsystem, u8"")
+			ADD_WORD(DllCharacteristics, u8"")
+			ADD_QWORD(SizeOfStackReserve, u8"")
+			ADD_QWORD(SizeOfStackCommit, u8"")
+			ADD_QWORD(SizeOfHeapReserve, u8"")
+			ADD_QWORD(SizeOfHeapCommit, u8"")
+			ADD_DWORD(LoaderFlags, u8"")
+			ADD_DWORD(NumberOfRvaAndSizes, u8"")
+				for (size_t i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++)
+				{
+					ADD_DATA_DIRECTORY_ENTRY(i, dataDirectoryEntryDesc[i])
+				}
+			
+#undef ADD_DATA_DIRECTORY_ENTRY
+#undef ADD_QWORD
+#undef ADD_DWORD
+#undef ADD_WORD
+#undef ADD_BYTE
+	}
+	else
+	{
+#define ADD_BYTE(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader32->OptionalHeader.field, 2), desc});
+
+#define ADD_WORD(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader32->OptionalHeader.field, 4), desc});
+
+#define ADD_DWORD(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader32->OptionalHeader.field, 8), desc});
+
+#define ADD_QWORD(field, desc) \
+    data.baseField.push_back({#field, ToHex(currentFile.pNtHeader32->OptionalHeader.field, 16), desc});
+
+#define ADD_DATA_DIRECTORY_ENTRY(i, desc) \
+    data.DataDirectory.push_back({ToHex(currentFile.pNtHeader32->OptionalHeader.DataDirectory[i].VirtualAddress, 8), ToHex(currentFile.pNtHeader32->OptionalHeader.DataDirectory[i].Size, 8), desc});
+
+		ADD_WORD(Magic, u8"")
+			ADD_BYTE(MajorLinkerVersion, u8"")
+			ADD_BYTE(MinorLinkerVersion, u8"")
+			ADD_DWORD(SizeOfCode, u8"")
+			ADD_DWORD(SizeOfInitializedData, u8"")
+			ADD_DWORD(SizeOfUninitializedData, u8"")
+			ADD_DWORD(AddressOfEntryPoint, u8"")
+			ADD_DWORD(BaseOfCode, u8"")
+			ADD_DWORD(ImageBase, u8"")
+			ADD_DWORD(SectionAlignment, u8"")
+			ADD_DWORD(FileAlignment, u8"")
+			ADD_WORD(MajorOperatingSystemVersion, u8"")
+			ADD_WORD(MinorOperatingSystemVersion, u8"")
+			ADD_WORD(MajorImageVersion, u8"")
+			ADD_WORD(MinorImageVersion, u8"")
+			ADD_WORD(MajorSubsystemVersion, u8"")
+			ADD_WORD(MinorSubsystemVersion, u8"")
+			ADD_DWORD(Win32VersionValue, u8"")
+			ADD_DWORD(SizeOfImage, u8"")
+			ADD_DWORD(SizeOfHeaders, u8"")
+			ADD_DWORD(CheckSum, u8"")
+			ADD_WORD(Subsystem, u8"")
+			ADD_WORD(DllCharacteristics, u8"")
+			ADD_DWORD(SizeOfStackReserve, u8"")
+			ADD_DWORD(SizeOfStackCommit, u8"")
+			ADD_DWORD(SizeOfHeapReserve, u8"")
+			ADD_DWORD(SizeOfHeapCommit, u8"")
+			ADD_DWORD(LoaderFlags, u8"")
+			ADD_DWORD(NumberOfRvaAndSizes, u8"")
+			for (size_t i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++)
+			{
+				ADD_DATA_DIRECTORY_ENTRY(i, dataDirectoryEntryDesc[i])
+			}
+
+#undef ADD_DATA_DIRECTORY_ENTRY
+#undef ADD_QWORD
+#undef ADD_DWORD
+#undef ADD_WORD
+#undef ADD_BYTE
+	}
+	return data;
+}
 void PECore::CloseFile()
 {
 	currentFile.filePath = {};

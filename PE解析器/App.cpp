@@ -774,6 +774,7 @@ void App::DrawSectionsView()
 }
 void App::DrawNtOptionalHeaderView()
 {
+    OptionalHeaderData optionalHeaderData= peCore.GetNtOptionalHeaderData();
     ImGui::BeginChild("NT Optional Header View");
     ImGui::Text("NT_Header.OptionalHeader Information");
     ImGui::Separator();
@@ -782,173 +783,34 @@ void App::DrawNtOptionalHeaderView()
     {
 
         ImGui::TableHeadersRow();
-
-        PVOID _pOptionalHeader = NULL;
-        if (currentPE->is64)_pOptionalHeader = &currentPE->pNtHeader64->OptionalHeader;
-        else _pOptionalHeader = &currentPE->pNtHeader32->OptionalHeader;
-
-        if (currentPE->is64)
+        for (size_t i = 0; i < optionalHeaderData.baseField.size(); i++)
         {
-            //64
-#define ADD_ROW(field, desc,format) \
-            ImGui::TableNextRow(); \
-            ImGui::TableSetColumnIndex(0); \
-            ImGui::Text(#field); \
-            ImGui::TableSetColumnIndex(1); \
-            ImGui::Text(format, PIMAGE_OPTIONAL_HEADER64(_pOptionalHeader)->field); \
-            ImGui::TableSetColumnIndex(2); \
-            ImGui::Text("%s", desc);
-
-            ADD_ROW(Magic,"","0x%04x");
-            ADD_ROW(MajorLinkerVersion, "","0x%02x");
-            ADD_ROW(MinorLinkerVersion, "","0x%02x");
-            ADD_ROW(SizeOfCode, "","0x%08x");
-            ADD_ROW(SizeOfInitializedData, "","0x%08x");
-            ADD_ROW(SizeOfUninitializedData, "","0x%08x");
-            ADD_ROW(AddressOfEntryPoint, "","0x%08x");
-            ADD_ROW(BaseOfCode, "","0x%08x");
-            ADD_ROW(ImageBase, "","0x%016llx");
-            ADD_ROW(SectionAlignment, "","0x%08x");
-            ADD_ROW(FileAlignment, "","0x%08x");
-            ADD_ROW(MajorOperatingSystemVersion, "","0x%04x");
-            ADD_ROW(MinorOperatingSystemVersion, "","0x%04x");
-            ADD_ROW(MajorImageVersion, "","0x%04x");
-            ADD_ROW(MinorImageVersion, "","0x%04x");
-            ADD_ROW(MajorSubsystemVersion, "","0x%04x");
-            ADD_ROW(MinorSubsystemVersion, "","0x%04x");
-            ADD_ROW(Win32VersionValue, "","0x%08x");
-            ADD_ROW(SizeOfImage, "","0x%08x");
-            ADD_ROW(SizeOfHeaders, "","0x%08x");
-            ADD_ROW(CheckSum, "","0x%08x");
-            ADD_ROW(Subsystem, "","0x%04x");
-            ADD_ROW(DllCharacteristics, "","0x%04x");
-            ADD_ROW(SizeOfStackReserve, "","0x%016llx");
-            ADD_ROW(SizeOfStackCommit, "","0x%016llx");
-            ADD_ROW(SizeOfHeapReserve, "","0x%016llx");
-            ADD_ROW(SizeOfHeapCommit, "","0x%016llx");
-            ADD_ROW(LoaderFlags, "", "0x%08x");
-            ADD_ROW(NumberOfRvaAndSizes, "", "0x%08x");
-            
             ImGui::TableNextRow();
-            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(140, 140, 140, 255));
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("DataDirectory");
+            ImGui::Text("%s", optionalHeaderData.baseField[i].field.c_str());
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("Description");
+            ImGui::Text("%s", optionalHeaderData.baseField[i].value.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("RVA/Size");
-
-#define ADD_DATA_DIRECTORY_ROW(index,name) \
-            ImGui::TableNextRow(); \
-            ImGui::TableSetColumnIndex(0); \
-            ImGui::Text("DataDirectory[%d]",index); \
-            ImGui::TableSetColumnIndex(1); \
-            ImGui::Text("%s", name); \
-            ImGui::TableSetColumnIndex(2); \
-            ImGui::Text("0x%08x / 0x%08x", PIMAGE_OPTIONAL_HEADER64(_pOptionalHeader)->DataDirectory[index].VirtualAddress,PIMAGE_OPTIONAL_HEADER64(_pOptionalHeader)->DataDirectory[index].Size);
-
-            ADD_DATA_DIRECTORY_ROW(0, "Export table address and size");
-            ADD_DATA_DIRECTORY_ROW(1, "Import table address and size");
-            ADD_DATA_DIRECTORY_ROW(2, "Resource table address and size");
-            ADD_DATA_DIRECTORY_ROW(3, "Exception table address and size");
-            ADD_DATA_DIRECTORY_ROW(4, "Certificate table address and size");
-            ADD_DATA_DIRECTORY_ROW(5, "Base relocation table address and size");
-            ADD_DATA_DIRECTORY_ROW(6, "Debugging information starting address and size");
-            ADD_DATA_DIRECTORY_ROW(7, "Architecture-specific data address and size");
-            ADD_DATA_DIRECTORY_ROW(8, "Global pointer register relative virtual address");
-            ADD_DATA_DIRECTORY_ROW(9, "Thread local storage (TLS) table address and size");
-            ADD_DATA_DIRECTORY_ROW(10, "Load configuration table address and size");
-            ADD_DATA_DIRECTORY_ROW(11, "Bound import table address and size");
-            ADD_DATA_DIRECTORY_ROW(12, "Import address table(IAT) address and size");
-            ADD_DATA_DIRECTORY_ROW(13, "Delay import descriptor address and size");
-            ADD_DATA_DIRECTORY_ROW(14, "The CLR header address and size");
-            ADD_DATA_DIRECTORY_ROW(15, "Reserved");
-#undef ADD_DATA_DIRECTORY_ROW
-
-#undef ADD_ROW
-           
+            ImGui::Text("%s", optionalHeaderData.baseField[i].description.c_str());
         }
-        else
+        ImGui::TableNextRow();
+        ImGui::TableSetColumnIndex(0);
+        ImGui::Text(u8"DataDirectory");
+        ImGui::TableSetColumnIndex(1);
+        ImGui::Text(u8"VirtualAddress / Size");
+        ImGui::TableSetColumnIndex(2);
+        ImGui::Text("description");
+        for (size_t i = 0; i < optionalHeaderData.DataDirectory.size(); i++)
         {
-            //32
-#define ADD_ROW(field, desc,format) \
-            ImGui::TableNextRow(); \
-            ImGui::TableSetColumnIndex(0); \
-            ImGui::Text(#field); \
-            ImGui::TableSetColumnIndex(1); \
-            ImGui::Text(format, PIMAGE_OPTIONAL_HEADER32(_pOptionalHeader)->field); \
-            ImGui::TableSetColumnIndex(2); \
-            ImGui::Text("%s", desc);
-
-            ADD_ROW(Magic, "", "0x%04x");
-            ADD_ROW(MajorLinkerVersion, "", "0x%02x");
-            ADD_ROW(MinorLinkerVersion, "", "0x%02x");
-            ADD_ROW(SizeOfCode, "", "0x%08x");
-            ADD_ROW(SizeOfInitializedData, "", "0x%08x");
-            ADD_ROW(SizeOfUninitializedData, "", "0x%08x");
-            ADD_ROW(AddressOfEntryPoint, "", "0x%08x");
-            ADD_ROW(BaseOfCode, "", "0x%08x");
-            ADD_ROW(ImageBase, "", "0x%08x");
-            ADD_ROW(SectionAlignment, "", "0x%08x");
-            ADD_ROW(FileAlignment, "", "0x%08x");
-            ADD_ROW(MajorOperatingSystemVersion, "", "0x%04x");
-            ADD_ROW(MinorOperatingSystemVersion, "", "0x%04x");
-            ADD_ROW(MajorImageVersion, "", "0x%04x");
-            ADD_ROW(MinorImageVersion, "", "0x%04x");
-            ADD_ROW(MajorSubsystemVersion, "", "0x%04x");
-            ADD_ROW(MinorSubsystemVersion, "", "0x%04x");
-            ADD_ROW(Win32VersionValue, "", "0x%08x");
-            ADD_ROW(SizeOfImage, "", "0x%08x");
-            ADD_ROW(SizeOfHeaders, "", "0x%08x");
-            ADD_ROW(CheckSum, "", "0x%08x");
-            ADD_ROW(Subsystem, "", "0x%04x");
-            ADD_ROW(DllCharacteristics, "", "0x%04x");
-            ADD_ROW(SizeOfStackReserve, "", "0x%08x");
-            ADD_ROW(SizeOfStackCommit, "", "0x%08x");
-            ADD_ROW(SizeOfHeapReserve, "", "0x%08x");
-            ADD_ROW(SizeOfHeapCommit, "", "0x%08x");
-            ADD_ROW(LoaderFlags, "", "0x%08x");
-            ADD_ROW(NumberOfRvaAndSizes, "", "0x%08x");
-
-
             ImGui::TableNextRow();
-            ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(140, 140, 140, 255));
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("DataDirectory");
+            ImGui::Text("DataDirectory[%d]", i);
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("Description");
+            ImGui::Text("%s / %s", optionalHeaderData.DataDirectory[i].virtualAddress.c_str(), optionalHeaderData.DataDirectory[i].size.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("RVA/Size");
-
-#define ADD_DATA_DIRECTORY_ROW(index,name) \
-            ImGui::TableNextRow(); \
-            ImGui::TableSetColumnIndex(0); \
-            ImGui::Text("DataDirectory[%d]",index); \
-            ImGui::TableSetColumnIndex(1); \
-            ImGui::Text("%s", name); \
-            ImGui::TableSetColumnIndex(2); \
-            ImGui::Text("0x%08x / 0x%08x", PIMAGE_OPTIONAL_HEADER32(_pOptionalHeader)->DataDirectory[index].VirtualAddress,PIMAGE_OPTIONAL_HEADER32(_pOptionalHeader)->DataDirectory[index].Size);
-
-            ADD_DATA_DIRECTORY_ROW(0, "Export table address and size");
-            ADD_DATA_DIRECTORY_ROW(1, "Import table address and size");
-            ADD_DATA_DIRECTORY_ROW(2, "Resource table address and size");
-            ADD_DATA_DIRECTORY_ROW(3, "Exception table address and size");
-            ADD_DATA_DIRECTORY_ROW(4, "Certificate table address and size");
-            ADD_DATA_DIRECTORY_ROW(5, "Base relocation table address and size");
-            ADD_DATA_DIRECTORY_ROW(6, "Debugging information starting address and size");
-            ADD_DATA_DIRECTORY_ROW(7, "Architecture-specific data address and size");
-            ADD_DATA_DIRECTORY_ROW(8, "Global pointer register relative virtual address");
-            ADD_DATA_DIRECTORY_ROW(9, "Thread local storage (TLS) table address and size");
-            ADD_DATA_DIRECTORY_ROW(10, "Load configuration table address and size");
-            ADD_DATA_DIRECTORY_ROW(11, "Bound import table address and size");
-            ADD_DATA_DIRECTORY_ROW(12, "Import address table(IAT) address and size");
-            ADD_DATA_DIRECTORY_ROW(13, "Delay import descriptor address and size");
-            ADD_DATA_DIRECTORY_ROW(14, "The CLR header address and size");
-            ADD_DATA_DIRECTORY_ROW(15, "Reserved");
-#undef ADD_DATA_DIRECTORY_ROW
-
-#undef ADD_ROW
+            ImGui::Text("%s", optionalHeaderData.DataDirectory[i].description.c_str());
         }
+
         ImGui::EndTable();
     }
 
@@ -979,7 +841,7 @@ void App::DrawNtFileHeaderView()
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("%s", viewData[i].value.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("%s", viewData[i].descriptor.c_str());
+            ImGui::Text("%s", viewData[i].description.c_str());
         }
         ImGui::EndTable();
     }
@@ -1008,7 +870,7 @@ void App::DrawNtSignatureView()
         ImGui::TableSetColumnIndex(1);
         ImGui::Text("%s", sign.value.c_str());
         ImGui::TableSetColumnIndex(2);
-        ImGui::Text("%s",sign.descriptor.c_str());
+        ImGui::Text("%s",sign.description.c_str());
 
         ImGui::EndTable();
     }
@@ -1309,7 +1171,7 @@ void App::DrawDOSHeaderView()
             ImGui::TableSetColumnIndex(1);
             ImGui::Text(data[i].value.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text(data[i].descriptor.c_str());
+            ImGui::Text(data[i].description.c_str());
         }
 
 
