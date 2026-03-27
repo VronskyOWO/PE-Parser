@@ -6,4 +6,4 @@ cpp17 ， library:  ntdll.lib;d3d11.lib;d3dcompiler.lib;
 
 English description:
   PE File Parser - Simply clone it with Visual Studio and compile, it supports parsing both x32 and x64 PE files regardless of whether you compile it as x32 or x64.
-  Thanks to GPT5.2 for the technical support. (doge)
+  Thanks to GPT5.2 for the technical support. (doge),The refactor branch is for after refactoring.
