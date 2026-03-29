@@ -15,6 +15,7 @@ public:
 	NtSignatureData GetNtSignatureData();
 	std::vector <NtFileHeaderData> GetNtFileHeaderData();
 	OptionalHeaderData GetNtOptionalHeaderData();
+	std::vector<std::vector<BaseData>> GetSectionsTableData();
 	void CloseFile();
 	BOOLEAN GetOpenStatus();
 	PECore();

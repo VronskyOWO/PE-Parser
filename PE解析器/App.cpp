@@ -702,16 +702,15 @@ void App::DrawExportView()
 }
 void App::DrawSectionsView()
 {
+    std::vector<std::vector<BaseData>> data =peCore.GetSectionsTableData();
     ImGui::BeginChild("Section Headers View");
     ImGui::Text("Section Headers Information");
     ImGui::Separator();
-    CHAR tempSectionNameStr[9] = { 0 };
     if (ImGui::BeginTable("Section Headers Table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
     {
         ImGui::TableHeadersRow();
-        for (size_t i = 0; i < currentPE->sectionCount; i++)
+        for (size_t i = 0; i < data.size(); i++)
         {
-            RtlZeroMemory(tempSectionNameStr, 9);
             ImGui::TableNextRow();
             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(140, 140, 140, 255));
             ImGui::TableSetColumnIndex(0);
@@ -721,50 +720,19 @@ void App::DrawSectionsView()
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("description");
 
-#define ADD_ROW(field, desc,format) \
-            ImGui::TableNextRow(); \
-            ImGui::TableSetColumnIndex(0); \
-            ImGui::Text(#field); \
-            ImGui::TableSetColumnIndex(1); \
-            ImGui::Text(format, currentPE->sectionHeaders[i].field); \
-            ImGui::TableSetColumnIndex(2); \
-            ImGui::Text("%s", desc);
-
-
-            RtlCopyMemory(tempSectionNameStr, currentPE->sectionHeaders[i].Name, IMAGE_SIZEOF_SHORT_NAME);
-            ImGui::TableNextRow(); 
-            ImGui::TableSetColumnIndex(0); 
-            ImGui::Text("Name"); 
-            ImGui::TableSetColumnIndex(1); 
-            ImGui::Text("%s [0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x 0x%02x]",tempSectionNameStr, currentPE->sectionHeaders[i].Name[0],
-                currentPE->sectionHeaders[i].Name[1],
-                currentPE->sectionHeaders[i].Name[2],
-                currentPE->sectionHeaders[i].Name[3],
-                currentPE->sectionHeaders[i].Name[4],
-                currentPE->sectionHeaders[i].Name[5],
-                currentPE->sectionHeaders[i].Name[6],
-                currentPE->sectionHeaders[i].Name[7]);
-
-            ImGui::TableSetColumnIndex(2);
-            ImGui::Text(u8"Section Name,不一定以NULL结尾");
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("Misc[union]");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("0x%08x", currentPE->sectionHeaders[i].Misc.VirtualSize);
-            ImGui::TableSetColumnIndex(2);
-            ImGui::Text(u8"VirtualSize/PhysicalAddress(PhysicalAddress是历史遗留，现代几乎都是解释成VirtualSize，即内存中对齐前的大小，但也不推荐使用，因为有的Section这个值可能不准确)");
             
-            ADD_ROW(VirtualAddress, u8"Section在内存中的RVA", "0x%08x");
-            ADD_ROW(SizeOfRawData, u8"Section在文件中按FileAlignment对齐后的大小", "0x%08x");
-            ADD_ROW(PointerToRawData, u8"Section在文件中的偏移地址(FOA)", "0x%08x");
-            ADD_ROW(PointerToRelocations, u8".OBJ文件中使用，指向重定位表的指针", "0x%08x");
-            ADD_ROW(PointerToLinenumbers, u8"调试行号信息(现代基本不用)", "0x%08x");
-            ADD_ROW(NumberOfRelocations, u8".OBJ文件中使用，重定位项数目.", "0x%04x");
-            ADD_ROW(NumberOfLinenumbers, u8"行号表中行号的数量(现代基本不用)", "0x%04x");
-            ADD_ROW(Characteristics, u8"section 属性(读/写/执行 等等)", "0x%08x");
-#undef ADD_ROW
+            for (size_t j = 0; j < data[i].size(); j++)
+            {
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%s", data[i][j].field.c_str());
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text("%s", data[i][j].value.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("%s", data[i][j].description.c_str());
+            }
+
         }
 
         ImGui::EndTable();
@@ -772,6 +740,8 @@ void App::DrawSectionsView()
 
     ImGui::EndChild();
 }
+
+
 void App::DrawNtOptionalHeaderView()
 {
     OptionalHeaderData optionalHeaderData= peCore.GetNtOptionalHeaderData();
@@ -794,6 +764,7 @@ void App::DrawNtOptionalHeaderView()
             ImGui::Text("%s", optionalHeaderData.baseField[i].description.c_str());
         }
         ImGui::TableNextRow();
+        ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(100, 100, 180, 255)); 
         ImGui::TableSetColumnIndex(0);
         ImGui::Text(u8"DataDirectory");
         ImGui::TableSetColumnIndex(1);

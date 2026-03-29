@@ -149,10 +149,10 @@ std::vector<DosHeaderData> PECore::GetDosHeaderData()
 	ADD_WORD(e_cs, u8"[Initial (relative) CS value]")
 	ADD_WORD(e_lfarlc, u8"[File address of relocation table]")
 	ADD_WORD(e_ovno, u8"[Overlay number]")
-	ADD_ARRAY(e_res,4,4,u8"[Reserved words]")
+	ADD_ARRAY(e_res,4,4,u8"[保留]")
 	ADD_WORD(e_oemid, u8"[OEM identifier (for e_oeminfo)]")
 	ADD_WORD(e_oeminfo, u8"[OEM information; e_oemid specific")
-	ADD_ARRAY(e_res2,10,4,u8"[Reserved words]")
+	ADD_ARRAY(e_res2,10,4,u8"[保留]")
 	ADD_DWORD(e_lfanew, u8"[File address of new exe header。NT Header的文件地址=文件头+e_lfanew]")
 
 #undef ADD_ARRAY
@@ -209,7 +209,7 @@ std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
 #undef ADD_DWORD
 #undef ADD_WORD
 	}
-
+	
 	return data;
 }
 OptionalHeaderData PECore::GetNtOptionalHeaderData()
@@ -348,6 +348,54 @@ OptionalHeaderData PECore::GetNtOptionalHeaderData()
 #undef ADD_WORD
 #undef ADD_BYTE
 	}
+	return data;
+}
+
+std::vector<std::vector<BaseData>> PECore::GetSectionsTableData()
+{
+	std::vector<std::vector<BaseData>> data{};
+
+	for (size_t i = 0; i < currentFile.sectionCount; i++)
+	{
+		std::vector<BaseData> section{};
+#define ADD_WORD(field, desc) \
+    section.push_back({#field, ToHex(currentFile.sectionHeaders[i].field, 4), desc});
+
+#define ADD_DWORD(field, desc) \
+    section.push_back({#field, ToHex(currentFile.sectionHeaders[i].field, 8), desc});
+#define ADD_ARRAY(field, count , width, desc)           \
+{                                                     \
+    std::string val;                                  \
+    for (int j = 0; j < count; ++j) {                 \
+        val += ToHex(currentFile.sectionHeaders[i].field[j], width); \
+        if (j != count - 1) val += " ";               \
+    }                                                 \
+    val += " [";                                      \
+    std::string name((char*)currentFile.sectionHeaders[i].field, count); \
+    name.erase(name.find_last_not_of('\0') + 1);       \
+    val += name;                                      \
+    val += "]";                                       \
+    section.push_back({#field, val, desc});           \
+}
+
+
+		ADD_ARRAY(Name, 8, 2, u8"section name,,不一定以NULL结尾");
+		ADD_DWORD(Misc.VirtualSize, u8"加载到内存中时节的总大小(对齐前)。 如果此值大于 SizeOfRawData，则节中会用零填充。 此字段仅对可执行映像有效，应针对对象文件设置为零")
+			ADD_DWORD(VirtualAddress, u8"对于可执行映像，是指当节加载到内存中时，该节相对于映像基址的RVA。 对于对象文件，此字段是应用重定位前第一个字节的地址；为简单起见，编译器应将此字段设置为零。 否则，它是重定位期间从偏移量中减去的任意值")
+			ADD_DWORD(SizeOfRawData, u8"Section在文件中按FileAlignment对齐后的大小")
+			ADD_DWORD(PointerToRawData, u8"指向COFF文件中该节第一页的文件指针。对于可执行映像，该值必须是可选头中FileAlignment的整数倍。对于目标文件，为获得最佳性能，该值应按4字节边界对齐。若某节仅包含未初始化数据，则此字段应设为零")
+			ADD_DWORD(PointerToRelocations, u8"指向该节重定位条目起始位置的文件指针。对于可执行镜像或无重定位的情况，该指针会被设为零")
+			ADD_DWORD(PointerToLinenumbers, u8"指向该节行号条目起始位置的文件指针。如果没有 COFF 行号，则该值设为零。对于可执行文件而言，此值应为零，因为 COFF 调试信息已被弃用")
+			ADD_WORD(NumberOfRelocations, u8"该节的重定位条目数量。对于可执行镜像，此值设为零")
+			ADD_WORD(NumberOfLinenumbers, u8"该节的行号条目数。对于image，此值应为零，因为 COFF 调试信息已被弃用。")
+			ADD_DWORD(Characteristics, u8"描述该节特性的标志")
+
+			data.push_back(section);
+#undef ADD_ARRAY
+#undef ADD_DWORD
+#undef ADD_WORD
+	}
+
 	return data;
 }
 void PECore::CloseFile()
