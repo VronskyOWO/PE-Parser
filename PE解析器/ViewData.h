@@ -31,4 +31,9 @@ struct OptionalHeaderData
 	std::vector<DataDirectoryEntryData> DataDirectory{};
 };
 
-
+struct ExportData
+{
+	std::string number;
+	std::string funcName;
+	std::string rva;
+};

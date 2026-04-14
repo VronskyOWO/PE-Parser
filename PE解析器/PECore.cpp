@@ -212,6 +212,46 @@ std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
 	
 	return data;
 }
+std::vector<ExportData> PECore::GetExportData()
+{
+	std::vector<ExportData> data{};
+	PIMAGE_EXPORT_DIRECTORY pExportDir = (PIMAGE_EXPORT_DIRECTORY)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(currentFile.exportDir->VirtualAddress));
+	PWORD AddressOfNameOrdinals = (PWORD)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(pExportDir->AddressOfNameOrdinals));
+	PDWORD AddressOfNames = (PDWORD)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(pExportDir->AddressOfNames));
+	PDWORD AddressOfFunctions = (PDWORD)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(pExportDir->AddressOfFunctions));
+	bool flag=false;
+	for (size_t i = 0; i < pExportDir->NumberOfFunctions; i++)
+	{
+		ExportData exportData{};
+		exportData.number = std::to_string(pExportDir->Base + i);
+		
+		flag = false;
+		size_t j = 0;
+		//判断AddressOfFunctions[i]是不是名称导出
+		for (j; j < pExportDir->NumberOfNames; j++)
+		{
+			if (AddressOfNameOrdinals[j] == i)
+			{
+				flag = true;
+				break;
+			}
+		}
+		if (flag)
+		{
+			exportData.funcName = std::string((PCHAR)pCurrentAddrOfFileView + RvaToFoa(AddressOfNames[j]));
+		}
+		else
+		{
+			exportData.funcName = std::string("");
+		}
+
+		exportData.rva = ToHex(AddressOfFunctions[i], 8);
+
+		data.push_back(exportData);
+	}
+	
+	return data;
+}
 OptionalHeaderData PECore::GetNtOptionalHeaderData()
 {
 	std::vector<std::string> dataDirectoryEntryDesc{
@@ -449,4 +489,36 @@ const MachineType* PECore::GetMachineType(WORD machine)
 	}
 
 	return nullptr;
+}
+
+DWORD PECore::RvaToFoa(DWORD rva)
+{
+	DWORD sizeOfHeaders;
+
+	// 在 headers 中
+	if (rva < currentFile.sectionHeaders[0].VirtualAddress)
+	{
+		return rva;
+	}
+
+	// 遍历 section
+	for (DWORD i = 0; i < currentFile.sectionCount; i++)
+	{
+		PIMAGE_SECTION_HEADER section = &currentFile.sectionHeaders[i];
+		DWORD start = section->VirtualAddress;
+
+		if (i == currentFile.sectionCount - 1)
+		{
+			return section->PointerToRawData + (rva - start);
+		}
+
+		DWORD nextSectionStart = currentFile.sectionHeaders[i + 1].VirtualAddress;
+
+		if (rva >= start && rva < nextSectionStart)
+		{
+			return section->PointerToRawData + (rva - start);
+		}
+	}
+
+	return 0;
 }

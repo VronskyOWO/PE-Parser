@@ -14,10 +14,12 @@ public:
 	std::vector<DosHeaderData> GetDosHeaderData();
 	NtSignatureData GetNtSignatureData();
 	std::vector <NtFileHeaderData> GetNtFileHeaderData();
+	std::vector <ExportData> GetExportData();
 	OptionalHeaderData GetNtOptionalHeaderData();
 	std::vector<std::vector<BaseData>> GetSectionsTableData();
 	void CloseFile();
 	BOOLEAN GetOpenStatus();
+	DWORD RvaToFoa(DWORD rva);
 	PECore();
 	~PECore();
 };

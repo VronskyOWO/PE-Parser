@@ -647,6 +647,7 @@ DWORD App::RvaToFoa(DWORD rva)
 
 void App::DrawExportView()
 {
+    std::vector<ExportData> exportData= peCore.GetExportData();
     ImGui::BeginChild("Export View");
     ImGui::Text("Export Information");
     ImGui::Separator();
@@ -658,42 +659,17 @@ void App::DrawExportView()
         ImGui::TableSetupColumn(u8"RVA", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
         
-        //定位IMAGE_EXPORT_DIRECTORY
-        DWORD foa = RvaToFoa(currentPE->exportDir->VirtualAddress);
-        PIMAGE_EXPORT_DIRECTORY pExportDirectory = (PIMAGE_EXPORT_DIRECTORY)(currentPE->fileReadBuffer + foa);
-        DWORD AddressOfFunctionsFOA = RvaToFoa(pExportDirectory->AddressOfFunctions);
-        DWORD AddressOfNameOrdinalsFOA = RvaToFoa(pExportDirectory->AddressOfNameOrdinals);
-        DWORD AddressOfNamesFOA = RvaToFoa(pExportDirectory->AddressOfNames);
-        PDWORD AddressOfFunctions = (PDWORD)(currentPE->fileReadBuffer+ AddressOfFunctionsFOA);
-        PWORD AddressOfNameOrdinals = (PWORD)(currentPE->fileReadBuffer+ AddressOfNameOrdinalsFOA);
-        PDWORD AddressOfNames = (PDWORD)(currentPE->fileReadBuffer+ AddressOfNamesFOA);
-        BOOL flag = false;
-        for (size_t i = 0; i < pExportDirectory->NumberOfFunctions; i++)
+        
+        for (size_t i = 0; i < exportData.size(); i++)
         {
-            flag = false;
-            size_t j = 0;
-            //判断AddressOfFunctions[i]是不是名称导出
-            for (j; j < pExportDirectory->NumberOfNames; j++)
-            {
-                if (AddressOfNameOrdinals[j] == i)
-                {
-                    flag = true;
-                    break;
-                }
-            }
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%d", i + pExportDirectory->Base);
-            if (flag)
-            {
-                ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s", currentPE->fileReadBuffer + RvaToFoa(AddressOfNames[j]));
-            }
-           
+            ImGui::Text("%s", exportData[i].number.c_str());
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%s", exportData[i].funcName.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("0x%08x", AddressOfFunctions[i]);
+            ImGui::Text("%s", exportData[i].rva.c_str());
         }
-
 
         ImGui::EndTable();
     }
