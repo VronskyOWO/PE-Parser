@@ -252,6 +252,98 @@ std::vector<ExportData> PECore::GetExportData()
 	
 	return data;
 }
+std::vector<ImportData> PECore::GetImportData()
+{
+	std::vector<ImportData> importDatas{};
+	PIMAGE_IMPORT_DESCRIPTOR pImportDescriptor= (PIMAGE_IMPORT_DESCRIPTOR)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(currentFile.importDir->VirtualAddress));
+
+	while (!RtlIsZeroMemory(pImportDescriptor, sizeof(IMAGE_IMPORT_DESCRIPTOR)))
+	{
+		ImportData importData{};
+		importData.dllInfo.dllName = std::string((PCHAR)pCurrentAddrOfFileView + RvaToFoa(pImportDescriptor->Name));
+		importData.dllInfo.firstThunk=ToHex(pImportDescriptor->FirstThunk,8);
+		importData.dllInfo.forwarderChain=ToHex(pImportDescriptor->ForwarderChain,8);
+		importData.dllInfo.originalFirstThunk=ToHex(pImportDescriptor->OriginalFirstThunk,8);
+		importData.dllInfo.timeDateStamp=ToHex(pImportDescriptor->TimeDateStamp,8);
+
+		PCHAR temp;
+		if (pImportDescriptor->OriginalFirstThunk != NULL)
+		{
+			temp = (PCHAR)pCurrentAddrOfFileView +
+				RvaToFoa(pImportDescriptor->OriginalFirstThunk);
+		}
+		else
+		{
+			temp = (PCHAR)pCurrentAddrOfFileView +
+				RvaToFoa(pImportDescriptor->FirstThunk);
+		}
+		std::vector<FuncInfo> funcsInfo{};
+		if (currentFile.is64)
+		{
+			PIMAGE_THUNK_DATA64 pThunk = (PIMAGE_THUNK_DATA64)temp;
+
+			while (!RtlIsZeroMemory(pThunk, sizeof(IMAGE_THUNK_DATA64)))
+			{
+				FuncInfo funcInfo{};
+				
+				if (IMAGE_SNAP_BY_ORDINAL64(pThunk->u1.Ordinal))
+				{
+					//仅序号导出
+					WORD ordinal = IMAGE_ORDINAL64(pThunk->u1.Ordinal);
+
+					funcInfo.funcName = std::string(u8"仅序号导出");
+					funcInfo.ordinal = ToHex(ordinal, 4);
+				}
+				else
+				{
+					//有名称导出
+					PIMAGE_IMPORT_BY_NAME pImportByName =
+						(PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView +
+							RvaToFoa(pThunk->u1.AddressOfData));
+
+					funcInfo.funcName = std::string(pImportByName->Name);
+					funcInfo.ordinal = ToHex(pImportByName->Hint, 4);
+				}
+				funcsInfo.push_back(funcInfo);
+				pThunk++;
+			}
+		}
+		else
+		{
+			PIMAGE_THUNK_DATA32 pThunk = (PIMAGE_THUNK_DATA32)temp;
+
+			while (!RtlIsZeroMemory(pThunk, sizeof(IMAGE_THUNK_DATA32)))
+			{
+				FuncInfo funcInfo{};
+				if (IMAGE_SNAP_BY_ORDINAL32(pThunk->u1.Ordinal))
+				{
+					WORD ordinal = IMAGE_ORDINAL32(pThunk->u1.Ordinal);
+
+					funcInfo.funcName = std::string(u8"仅序号导出");
+					funcInfo.ordinal = ToHex(ordinal, 4);
+				}
+				else
+				{
+					PIMAGE_IMPORT_BY_NAME pImportByName =
+						(PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView +
+							RvaToFoa(pThunk->u1.AddressOfData));
+
+					funcInfo.funcName = std::string(pImportByName->Name);
+					funcInfo.ordinal = ToHex(pImportByName->Hint, 4);
+				}
+				funcsInfo.push_back(funcInfo);
+				pThunk++;
+			}
+		}
+
+		importData.funcsInfo = funcsInfo;
+		importDatas.push_back(importData);
+		pImportDescriptor++;
+	}
+
+	return importDatas;
+
+}
 OptionalHeaderData PECore::GetNtOptionalHeaderData()
 {
 	std::vector<std::string> dataDirectoryEntryDesc{

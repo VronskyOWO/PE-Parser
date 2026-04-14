@@ -33,7 +33,27 @@ struct OptionalHeaderData
 
 struct ExportData
 {
-	std::string number;
-	std::string funcName;
-	std::string rva;
+	std::string number{};
+	std::string funcName{};
+	std::string rva{};
+};
+
+struct DllInfo
+{
+	std::string dllName{};
+	std::string originalFirstThunk{};
+	std::string timeDateStamp{};
+	std::string forwarderChain{};
+	std::string firstThunk{};
+	
+};
+struct FuncInfo
+{
+	std::string ordinal{};
+	std::string funcName{};
+};
+struct ImportData
+{
+	DllInfo dllInfo{};
+	std::vector<FuncInfo> funcsInfo{};
 };

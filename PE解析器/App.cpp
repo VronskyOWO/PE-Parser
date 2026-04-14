@@ -415,6 +415,7 @@ void App::DrawBaseRelocaleView()
 
 void App::DrawImportView()
 {
+    std::vector<ImportData> importDatas= peCore.GetImportData();
     ImGui::BeginChild("Import View");
     ImGui::Text("Import Information");
     ImGui::Separator();
@@ -457,30 +458,25 @@ void App::DrawImportView()
         ImGui::TableSetupColumn(u8"FirstThunk", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
-        int index = 0;
-        PIMAGE_IMPORT_DESCRIPTOR pImportDescriptor =(PIMAGE_IMPORT_DESCRIPTOR)(currentPE->fileReadBuffer + RvaToFoa(currentPE->importDir->VirtualAddress));
-        while (!RtlIsZeroMemory(pImportDescriptor, sizeof(IMAGE_IMPORT_DESCRIPTOR)))
+        for (size_t i = 0; i < importDatas.size(); i++)
         {
-            PCHAR pName =currentPE->fileReadBuffer + RvaToFoa(pImportDescriptor->Name);
             ImGui::TableNextRow();
             // 第一列 selectable
             ImGui::TableSetColumnIndex(0);
-            if (ImGui::Selectable(pName, selectedImportIndex == index,
+            if (ImGui::Selectable(importDatas[i].dllInfo.dllName.c_str(), selectedImportIndex == i,
                 ImGuiSelectableFlags_SpanAllColumns))
             {
-                selectedImportIndex = index;
+                selectedImportIndex = i;
             }
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("0x%08x",pImportDescriptor->OriginalFirstThunk);
+            ImGui::Text("%s", importDatas[i].dllInfo.originalFirstThunk.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("0x%08x",pImportDescriptor->TimeDateStamp);
+            ImGui::Text("%s", importDatas[i].dllInfo.timeDateStamp.c_str());
             ImGui::TableSetColumnIndex(3);
-            ImGui::Text("0x%08x",pImportDescriptor->ForwarderChain);
+            ImGui::Text("%s", importDatas[i].dllInfo.forwarderChain.c_str());
             ImGui::TableSetColumnIndex(4);
-            ImGui::Text("0x%08x",pImportDescriptor->FirstThunk);
+            ImGui::Text("%s", importDatas[i].dllInfo.firstThunk.c_str());
 
-            pImportDescriptor++;
-            index++;
         }
         
         ImGui::EndTable();
@@ -488,18 +484,6 @@ void App::DrawImportView()
     ImGui::EndChild();// ========== 上表结束  ========== 
 
 
-
-    PIMAGE_IMPORT_DESCRIPTOR selectedDescriptor = NULL;
-
-    PIMAGE_IMPORT_DESCRIPTOR pImportDescriptor =
-        (PIMAGE_IMPORT_DESCRIPTOR)(currentPE->fileReadBuffer +
-            RvaToFoa(currentPE->importDir->VirtualAddress));
-
-    for (int i = 0; i <= selectedImportIndex; i++)
-    {
-        selectedDescriptor = pImportDescriptor;
-        pImportDescriptor++;
-    }
 
     
     ImGui::Separator();
@@ -514,7 +498,7 @@ void App::DrawImportView()
         ImGuiTableFlags_ScrollY |
         ImGuiTableFlags_RowBg;
 
-    if (selectedDescriptor && ImGui::BeginTable("ImportFunctions", 2,
+    if (selectedImportIndex!=-1 && ImGui::BeginTable("ImportFunctions", 2,
         bottomFlags))
     {
         ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
@@ -522,89 +506,16 @@ void App::DrawImportView()
         ImGui::TableSetupColumn(u8"Function Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
-        PCHAR temp;
-        if (selectedDescriptor->OriginalFirstThunk != NULL)
+        for (size_t i = 0; i < importDatas[selectedImportIndex].funcsInfo.size(); i++)
         {
-            temp = currentPE->fileReadBuffer +
-                RvaToFoa(selectedDescriptor->OriginalFirstThunk);
+            ImGui::TableNextRow();
+            // 第一列 selectable
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].ordinal.c_str());
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].funcName.c_str());
+
         }
-        else
-        {
-            temp = currentPE->fileReadBuffer +
-                RvaToFoa(selectedDescriptor->FirstThunk);
-        }
-
-        if (currentPE->is64)
-        {
-            PIMAGE_THUNK_DATA64 pThunk = (PIMAGE_THUNK_DATA64)temp;
-
-            while (!RtlIsZeroMemory(pThunk, sizeof(IMAGE_THUNK_DATA64)))
-            {
-                ImGui::TableNextRow();
-
-                if (IMAGE_SNAP_BY_ORDINAL64(pThunk->u1.Ordinal))
-                {
-                    //仅序号导出
-                    WORD ordinal = IMAGE_ORDINAL64(pThunk->u1.Ordinal);
-
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("0x%04x", ordinal);
-
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text(u8"仅序号导出");
-                }
-                else
-                {
-                    //有名称导出
-                    PIMAGE_IMPORT_BY_NAME pImportByName =
-                        (PIMAGE_IMPORT_BY_NAME)(currentPE->fileReadBuffer +
-                            RvaToFoa(pThunk->u1.AddressOfData));
-
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("0x%04x", pImportByName->Hint);
-
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%s", pImportByName->Name);
-                }
-
-                pThunk++;
-            }
-        }
-        else
-        {
-            PIMAGE_THUNK_DATA32 pThunk = (PIMAGE_THUNK_DATA32)temp;
-
-            while (!RtlIsZeroMemory(pThunk, sizeof(IMAGE_THUNK_DATA32)))
-            {
-                ImGui::TableNextRow();
-
-                if (IMAGE_SNAP_BY_ORDINAL32(pThunk->u1.Ordinal))
-                {
-                    WORD ordinal = IMAGE_ORDINAL32(pThunk->u1.Ordinal);
-
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("0x%04x", ordinal);
-
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text(u8"仅序号导出");
-                }
-                else
-                {
-                    PIMAGE_IMPORT_BY_NAME pImportByName =
-                        (PIMAGE_IMPORT_BY_NAME)(currentPE->fileReadBuffer +
-                            RvaToFoa(pThunk->u1.AddressOfData));
-
-                    ImGui::TableSetColumnIndex(0);
-                    ImGui::Text("0x%04x", pImportByName->Hint);
-
-                    ImGui::TableSetColumnIndex(1);
-                    ImGui::Text("%s", pImportByName->Name);
-                }
-
-                pThunk++;
-            }
-        }
-
 
         ImGui::EndTable();
     }

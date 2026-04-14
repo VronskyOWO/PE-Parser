@@ -15,6 +15,7 @@ public:
 	NtSignatureData GetNtSignatureData();
 	std::vector <NtFileHeaderData> GetNtFileHeaderData();
 	std::vector <ExportData> GetExportData();
+	std::vector <ImportData> GetImportData();
 	OptionalHeaderData GetNtOptionalHeaderData();
 	std::vector<std::vector<BaseData>> GetSectionsTableData();
 	void CloseFile();
