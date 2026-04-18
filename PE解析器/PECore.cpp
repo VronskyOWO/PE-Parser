@@ -530,6 +530,237 @@ std::vector<std::vector<BaseData>> PECore::GetSectionsTableData()
 
 	return data;
 }
+ResourceNode PECore::GetResourcesData()
+{
+
+	ResourceNode result;
+
+	if (!currentFile.resourceDir->VirtualAddress)
+		return result;
+
+	DWORD baseRva = currentFile.resourceDir->VirtualAddress;
+	DWORD foa = RvaToFoa(baseRva);
+
+	auto root = (PIMAGE_RESOURCE_DIRECTORY)
+		((PBYTE)pCurrentAddrOfFileView + foa);
+
+	ParseResourceNode(root, baseRva, 0, result);
+
+	return result;
+
+}
+
+void PECore::ParseResourceNode(
+	PIMAGE_RESOURCE_DIRECTORY dir,
+	DWORD baseRva,
+	int level,
+	ResourceNode& node
+)
+{
+	auto entry = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(dir + 1);
+	int count = dir->NumberOfNamedEntries + dir->NumberOfIdEntries;
+
+	node.level = level;
+	if (level == 0)
+	{
+		node.isRoot = true;
+	}
+
+	for (int i = 0; i < count; i++, entry++)
+	{
+		ResourceNode subNode{};
+		subNode.level = level + 1;
+		// --- 名字 ---
+		if (entry->NameIsString)
+		{
+			DWORD nameRva = baseRva + entry->NameOffset;
+			DWORD nameFoa = RvaToFoa(nameRva);
+
+			auto str = (PIMAGE_RESOURCE_DIR_STRING_U)
+				((PBYTE)pCurrentAddrOfFileView + nameFoa);
+
+			char utf8[MAX_PATH] = {};
+			WideCharToMultiByte(CP_UTF8, 0,
+				str->NameString,
+				str->Length,
+				utf8, sizeof(utf8),
+				NULL, NULL);
+
+			subNode.name = utf8;
+			subNode.isNamed = true;
+		}
+		else
+		{
+			subNode.id = entry->Id;
+		}
+
+		// --- 子目录 ---
+		if (entry->DataIsDirectory)
+		{
+			DWORD subRva = baseRva + (entry->OffsetToDirectory & 0x7FFFFFFF);
+			DWORD subFoa = RvaToFoa(subRva);
+
+			auto subDir = (PIMAGE_RESOURCE_DIRECTORY)
+				((PBYTE)pCurrentAddrOfFileView + subFoa);
+
+			ParseResourceNode(subDir, baseRva, level + 1, subNode);
+		}
+		else
+		{
+			DWORD dataEntryRva = baseRva + (entry->OffsetToData & 0x7FFFFFFF);
+			auto pResDataEntry = (PIMAGE_RESOURCE_DATA_ENTRY)
+				((PBYTE)pCurrentAddrOfFileView + RvaToFoa(dataEntryRva));
+
+			ResourceData data{};
+			data.dataRva = pResDataEntry->OffsetToData;
+			data.dataSize = pResDataEntry->Size;
+			data.codePage = pResDataEntry->CodePage;
+			data.reserved = pResDataEntry->Reserved;
+
+			//拷贝 raw data
+			DWORD dataFoa = RvaToFoa(data.dataRva);
+			BYTE* src = (BYTE*)pCurrentAddrOfFileView + dataFoa;
+
+			data.rawData.assign(src, src + data.dataSize);
+
+			subNode.data = data;
+		}
+
+		node.children.push_back(subNode);
+	}
+}
+
+
+//void PECore::DrawResourceNode(
+//	PIMAGE_RESOURCE_DIRECTORY dir,
+//	DWORD baseRva,
+//	DWORD level)
+//{
+//	auto entry = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(dir + 1);
+//	int count = dir->NumberOfNamedEntries + dir->NumberOfIdEntries;
+//
+//	for (int i = 0; i < count; i++, entry++)
+//	{
+//		char label[MAX_PATH] = { 0 };
+//
+//		// --- 解析名字 ---
+//		if (entry->NameIsString)
+//		{
+//			DWORD nameRva = baseRva + entry->NameOffset;
+//			DWORD nameFoa = RvaToFoa(nameRva);
+//
+//			auto str = (PIMAGE_RESOURCE_DIR_STRING_U)
+//				((PCHAR)pCurrentAddrOfFileView+ nameFoa);
+//
+//			char utf8[MAX_PATH] = { 0 };
+//			WideCharToMultiByte(CP_UTF8, 0,
+//				str->NameString,
+//				str->Length,
+//				utf8, sizeof(utf8),
+//				NULL, NULL);
+//
+//			sprintf_s(label, u8"资源名: %s", utf8);
+//
+//
+//			switch (level)
+//			{
+//			case 1:
+//				sprintf_s(label, u8"资源类型: %s", utf8);
+//				break;
+//			case 2:
+//				sprintf_s(label, u8"资源名: %s", utf8);
+//				break;
+//			case 3:
+//				sprintf_s(label, u8"资源语言: %s", utf8);
+//				break;
+//			default:
+//				break;
+//			}
+//		}
+//		else
+//		{
+//			switch (level)
+//			{
+//			case 1:
+//				sprintf_s(label, u8"资源类型ID: %u--%s", entry->Id, GetResTypeName(entry->Id));
+//				currentResTypeId = entry->Id;
+//				break;
+//			case 2:
+//				sprintf_s(label, u8"资源名ID: %u", entry->Id);
+//				break;
+//			case 3:
+//				sprintf_s(label, u8"资源语言ID: %u", entry->Id);
+//				break;
+//			default:
+//				break;
+//			}
+//
+//		}
+//
+//
+//		// --- 子目录 ---
+//		if (entry->DataIsDirectory)
+//		{
+//			DWORD subRva = baseRva + (entry->OffsetToDirectory & 0x7FFFFFFF);
+//			DWORD subFoa = RvaToFoa(subRva);
+//
+//			auto subDir = (PIMAGE_RESOURCE_DIRECTORY)
+//				(currentPE->fileReadBuffer + subFoa);
+//
+//			ImGui::PushID(entry);
+//
+//			if (ImGui::TreeNode(label))
+//			{
+//				DrawResourceNode(subDir, baseRva, level + 1);
+//				ImGui::TreePop();
+//			}
+//
+//			ImGui::PopID();
+//
+//		}
+//		else
+//		{
+//			DWORD dataEntryRva = baseRva + (entry->OffsetToData & 0x7FFFFFFF);
+//			auto pResDataEntry = (PIMAGE_RESOURCE_DATA_ENTRY)(currentPE->fileReadBuffer + RvaToFoa(dataEntryRva));
+//			DWORD dataRva = pResDataEntry->OffsetToData;
+//			// 叶子节点 → selectable
+//
+//			if (ImGui::Selectable(label, selectedResData.dataRva == dataRva))
+//			{
+//				selectedResData.dataRva = dataRva;
+//				selectedResData.typeId = currentResTypeId;
+//				selectedResData.resDataEntryRva = dataEntryRva;
+//				selectedResData.dataSize = pResDataEntry->Size;
+//			}
+//
+//
+//		}
+//	}
+//}
+
+
+const char* PECore::GetResTypeName(WORD id)
+{
+	switch (id)
+	{
+	case 1:  return "CURSOR";
+	case 2:  return "BITMAP";
+	case 3:  return "ICON";
+	case 4:  return "MENU";
+	case 5:  return "DIALOG";
+	case 6:  return "STRING";
+	case 7:  return "FONTDIR";
+	case 8:  return "FONT";
+	case 9:  return "ACCELERATOR";
+	case 10: return "RCDATA";
+	case 11: return "MESSAGETABLE";
+	case 12: return "GROUP_CURSOR";
+	case 14: return "GROUP_ICON";
+	case 16: return "VERSION";
+	case 24: return "MANIFEST";
+	default: return "UNKNOWN";
+	}
+}
 void PECore::CloseFile()
 {
 	currentFile.filePath = {};

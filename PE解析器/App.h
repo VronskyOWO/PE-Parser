@@ -37,6 +37,7 @@ public:
 	void SetDarkTheme();
 	const char* GetResTypeName(WORD id);
 private:
+	ResourceNode resourceData;
 	SelectedResData selectedResData{};
 	int currentResTypeId = -1;
 	int selectedImportIndex = -1;
@@ -51,7 +52,8 @@ private:
 	void DrawExportView();
 	void DrawImportView();
 	void DrawResourceView();
-	void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
+	void DrawResourceNode(const ResourceNode& node);
+	//void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
 	void DrawBaseRelocaleView();
 	void DrawMenuBar();
 	void OpenFile();     // ÉùÃ÷

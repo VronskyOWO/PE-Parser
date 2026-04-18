@@ -1,4 +1,4 @@
-#include "App.h"
+ï»¿#include "App.h"
 
 extern PECore peCore;
 void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow = 16);
@@ -7,7 +7,7 @@ void App::update()
 {
     DrawMenuBar();
 
-    //ÈÃÖ÷´°¿Ú ×Ô¶¯Ìî³äÆÁÄ»
+    //è®©ä¸»çª—å£ è‡ªåŠ¨å¡«å……å±å¹•
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(viewport->WorkPos);
     ImGui::SetNextWindowSize(viewport->WorkSize);
@@ -42,14 +42,14 @@ void App::DrawPEView()
     ImGui::Text("PE Information");
 
     ImGui::Separator();
-    // ¼ì²éÊÇ·ñÓĞPEÎÄ¼ş¼ÓÔØ
+    // æ£€æŸ¥æ˜¯å¦æœ‰PEæ–‡ä»¶åŠ è½½
     if (!peCore.GetOpenStatus())
     {
-        ImGui::TextColored(ImVec4(1, 1, 0, 1), u8"ÇëÏÈ´ò¿ªPEÎÄ¼ş");
+        ImGui::TextColored(ImVec4(1, 1, 0, 1), u8"è¯·å…ˆæ‰“å¼€PEæ–‡ä»¶");
         ImGui::EndChild();
         return;
     }
-    // ´òÓ¡µ÷ÊÔĞÅÏ¢£¬È·±£ currentView ¸üĞÂÎª View_DOS
+    // æ‰“å°è°ƒè¯•ä¿¡æ¯ï¼Œç¡®ä¿ currentView æ›´æ–°ä¸º View_DOS
     switch (currentView)
     {
     case View_DOS:
@@ -80,7 +80,7 @@ void App::DrawPEView()
         DrawBaseRelocaleView();
         break;
     default:
-        ImGui::Text(u8"µÈ´ı¼ÓÔØÎÄ¼ş...");
+        ImGui::Text(u8"ç­‰å¾…åŠ è½½æ–‡ä»¶...");
         break;
     }
 
@@ -92,38 +92,20 @@ void App::DrawPEView()
 
 void App::DrawResourceView()
 {
+    resourceData = peCore.GetResourcesData();
+  /*  if (resourceData.empty())
+    {
+        ImGui::Text(u8"Resource data is empty");
+    }*/
     ImGui::BeginChild("Resource View");
 
-    ImGui::Text(u8"Resource Tree(Ò»¼¶Ä¿Â¼¡¢¶ş¼¶Ä¿Â¼¡¢Èı¼¶Ä¿Â¼)");
+    ImGui::Text(u8"Resource Tree(ä¸€çº§ç›®å½•ã€äºŒçº§ç›®å½•ã€ä¸‰çº§ç›®å½•)");
     ImGui::Separator();
 
-    if (!currentPE || currentPE->importDir == NULL)//??
-    {
-        ImGui::Text("No Resource");
-        ImGui::EndChild();
-        return;
-    }
-
-    auto dir = currentPE->is64 ?
-        currentPE->pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE] :
-        currentPE->pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
-
-    if (dir.VirtualAddress == 0)
-    {
-        ImGui::Text("No Resource Directory");
-        ImGui::EndChild();
-        return;
-    }
-
-    DWORD baseRva = dir.VirtualAddress;
-    DWORD foa = RvaToFoa(baseRva);
-
-    auto root = (PIMAGE_RESOURCE_DIRECTORY)
-        (currentPE->fileReadBuffer + foa);
-
-    // --- Ê÷ ---
-    DrawResourceNode(root, baseRva,1);
-    // --- ÏêÇé ---
+   // DrawResourceNode()
+    // --- æ ‘ ---
+    //DrawResourceNode(root, baseRva,1);
+    // --- è¯¦æƒ… ---
     ImGui::Separator();
 
     // Start two columns layout
@@ -137,7 +119,7 @@ void App::DrawResourceView()
         DWORD resDataEntryFoa = RvaToFoa(selectedResData.resDataEntryRva);
         PIMAGE_RESOURCE_DATA_ENTRY pResDataEntry = (PIMAGE_RESOURCE_DATA_ENTRY)(currentPE->fileReadBuffer + resDataEntryFoa);
 
-        // ×ÊÔ´Êı¾İÏêÏ¸ĞÅÏ¢
+        // èµ„æºæ•°æ®è¯¦ç»†ä¿¡æ¯
         ImGui::Text("OffsetToData 0x%X --------->", pResDataEntry->OffsetToData);
         ImGui::Text("Size: 0x%X", pResDataEntry->Size);
         ImGui::Text("CodePage: 0x%X", pResDataEntry->CodePage);
@@ -195,114 +177,136 @@ const char* App::GetResTypeName(WORD id)
     }
 }
 
-void App::DrawResourceNode(
-    PIMAGE_RESOURCE_DIRECTORY dir,
-    DWORD baseRva,
-    DWORD level)
+
+void App::DrawResourceNode(const ResourceNode& node)
 {
-    auto entry = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(dir + 1);
-    int count = dir->NumberOfNamedEntries + dir->NumberOfIdEntries;
-
-    for (int i = 0; i < count; i++, entry++)
+    if (!node.children.empty())
     {
-        char label[MAX_PATH] = { 0 };
-
-        // --- ½âÎöÃû×Ö ---
-        if (entry->NameIsString)
+        if (ImGui::TreeNode(node.name.c_str()))
         {
-            DWORD nameRva = baseRva + entry->NameOffset;
-            DWORD nameFoa = RvaToFoa(nameRva);
+            for (auto& c : node.children)
+                DrawResourceNode(c);
 
-            auto str = (PIMAGE_RESOURCE_DIR_STRING_U)
-                (currentPE->fileReadBuffer + nameFoa);
-
-            char utf8[MAX_PATH] = {0};
-            WideCharToMultiByte(CP_UTF8, 0,
-                str->NameString,
-                str->Length,
-                utf8, sizeof(utf8),
-                NULL, NULL);
-
-            sprintf_s(label, u8"×ÊÔ´Ãû: %s", utf8);
-
-
-            switch (level)
-            {
-            case 1:
-                sprintf_s(label, u8"×ÊÔ´ÀàĞÍ: %s", utf8);
-                break;
-            case 2:
-                sprintf_s(label, u8"×ÊÔ´Ãû: %s", utf8);
-                break;
-            case 3:
-                sprintf_s(label, u8"×ÊÔ´ÓïÑÔ: %s", utf8);
-                break;
-            default:
-                break;
-            }
+            ImGui::TreePop();
         }
-        else
+    }
+    else if (node.data.has_value())
+    {
+        if (ImGui::Selectable(node.name.c_str()))
         {
-            switch (level)
-            {
-            case 1:
-                sprintf_s(label, u8"×ÊÔ´ÀàĞÍID: %u--%s", entry->Id, GetResTypeName(entry->Id));
-                currentResTypeId = entry->Id;
-                break;
-            case 2:
-                sprintf_s(label, u8"×ÊÔ´ÃûID: %u", entry->Id);
-                break;
-            case 3:
-                sprintf_s(label, u8"×ÊÔ´ÓïÑÔID: %u", entry->Id);
-                break;
-            default:
-                break;
-            }
-            
-        }
-
-        
-        // --- ×ÓÄ¿Â¼ ---
-        if (entry->DataIsDirectory)
-        {
-            DWORD subRva = baseRva + (entry->OffsetToDirectory & 0x7FFFFFFF);
-            DWORD subFoa = RvaToFoa(subRva);
-
-            auto subDir = (PIMAGE_RESOURCE_DIRECTORY)
-                (currentPE->fileReadBuffer + subFoa);
-
-            ImGui::PushID(entry);
-
-            if (ImGui::TreeNode(label))
-            {
-                DrawResourceNode(subDir, baseRva, level + 1);
-                ImGui::TreePop();
-            }
-
-            ImGui::PopID();
-
-        }
-        else
-        {
-            DWORD dataEntryRva = baseRva + (entry->OffsetToData & 0x7FFFFFFF);
-            auto pResDataEntry = (PIMAGE_RESOURCE_DATA_ENTRY)(currentPE->fileReadBuffer + RvaToFoa(dataEntryRva));
-            DWORD dataRva = pResDataEntry->OffsetToData;
-            // Ò¶×Ó½Úµã ¡ú selectable
-            ImGui::PushID(entry);
-
-            if (ImGui::Selectable(label, selectedResData.dataRva == dataRva))
-            {
-                selectedResData.dataRva = dataRva;
-                selectedResData.typeId = currentResTypeId;
-                selectedResData.resDataEntryRva = dataEntryRva;
-                selectedResData.dataSize = pResDataEntry->Size;
-            }
-
-            ImGui::PopID();
-
+            //selectedNode = &node; //ç›´æ¥æŒ‡å‘
         }
     }
 }
+
+//void DrawResourceNodexxxxxx(
+//    PIMAGE_RESOURCE_DIRECTORY dir,
+//    DWORD baseRva,
+//    DWORD level)
+//{
+//    auto entry = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(dir + 1);
+//    int count = dir->NumberOfNamedEntries + dir->NumberOfIdEntries;
+//
+//    for (int i = 0; i < count; i++, entry++)
+//    {
+//        char label[MAX_PATH] = { 0 };
+//
+//        // --- è§£æåå­— ---
+//        if (entry->NameIsString)
+//        {
+//            DWORD nameRva = baseRva + entry->NameOffset;
+//            DWORD nameFoa = RvaToFoa(nameRva);
+//
+//            auto str = (PIMAGE_RESOURCE_DIR_STRING_U)
+//                (currentPE->fileReadBuffer + nameFoa);
+//
+//            char utf8[MAX_PATH] = {0};
+//            WideCharToMultiByte(CP_UTF8, 0,
+//                str->NameString,
+//                str->Length,
+//                utf8, sizeof(utf8),
+//                NULL, NULL);
+//
+//            sprintf_s(label, u8"èµ„æºå: %s", utf8);
+//
+//
+//            switch (level)
+//            {
+//            case 1:
+//                sprintf_s(label, u8"èµ„æºç±»å‹: %s", utf8);
+//                break;
+//            case 2:
+//                sprintf_s(label, u8"èµ„æºå: %s", utf8);
+//                break;
+//            case 3:
+//                sprintf_s(label, u8"èµ„æºè¯­è¨€: %s", utf8);
+//                break;
+//            default:
+//                break;
+//            }
+//        }
+//        else
+//        {
+//            switch (level)
+//            {
+//            case 1:
+//                sprintf_s(label, u8"èµ„æºç±»å‹ID: %u--%s", entry->Id, GetResTypeName(entry->Id));
+//                currentResTypeId = entry->Id;
+//                break;
+//            case 2:
+//                sprintf_s(label, u8"èµ„æºåID: %u", entry->Id);
+//                break;
+//            case 3:
+//                sprintf_s(label, u8"èµ„æºè¯­è¨€ID: %u", entry->Id);
+//                break;
+//            default:
+//                break;
+//            }
+//            
+//        }
+//
+//        
+//        // --- å­ç›®å½• ---
+//        if (entry->DataIsDirectory)
+//        {
+//            DWORD subRva = baseRva + (entry->OffsetToDirectory & 0x7FFFFFFF);
+//            DWORD subFoa = RvaToFoa(subRva);
+//
+//            auto subDir = (PIMAGE_RESOURCE_DIRECTORY)
+//                (currentPE->fileReadBuffer + subFoa);
+//
+//            ImGui::PushID(entry);
+//
+//            if (ImGui::TreeNode(label))
+//            {
+//                DrawResourceNode(subDir, baseRva, level + 1);
+//                ImGui::TreePop();
+//            }
+//
+//            ImGui::PopID();
+//
+//        }
+//        else
+//        {
+//            DWORD dataEntryRva = baseRva + (entry->OffsetToData & 0x7FFFFFFF);
+//            auto pResDataEntry = (PIMAGE_RESOURCE_DATA_ENTRY)(currentPE->fileReadBuffer + RvaToFoa(dataEntryRva));
+//            DWORD dataRva = pResDataEntry->OffsetToData;
+//            // å¶å­èŠ‚ç‚¹ â†’ selectable
+//            ImGui::PushID(entry);
+//
+//            if (ImGui::Selectable(label, selectedResData.dataRva == dataRva))
+//            {
+//                selectedResData.dataRva = dataRva;
+//                selectedResData.typeId = currentResTypeId;
+//                selectedResData.resDataEntryRva = dataEntryRva;
+//                selectedResData.dataSize = pResDataEntry->Size;
+//            }
+//
+//            ImGui::PopID();
+//
+//        }
+//    }
+//}
 
 void App::DrawBaseRelocaleView()
 {
@@ -314,14 +318,14 @@ void App::DrawBaseRelocaleView()
     ImGui::BeginChild("BaseRelocale View");
     ImGui::Text("BaseRelocale Imformation");
     ImGui::Separator();
-    // ¸øÉÏÏÂÁ½¸ö±í¸ñ·ÖÅä¸ß¶È£¨ÄãÒ²¿ÉÒÔ¸Ä³ÉÄãÏëÒªµÄ±ÈÀı£©
+    // ç»™ä¸Šä¸‹ä¸¤ä¸ªè¡¨æ ¼åˆ†é…é«˜åº¦ï¼ˆä½ ä¹Ÿå¯ä»¥æ”¹æˆä½ æƒ³è¦çš„æ¯”ä¾‹ï¼‰
     float availY = ImGui::GetContentRegionAvail().y;
     float topH = availY * 0.45f;
     float gap = ImGui::GetStyle().ItemSpacing.y;
     float bottomH = availY - topH - gap;
     if (bottomH < 100.0f) bottomH = 100.0f;
 
-    // ========== ÉÏ±í£ºÖØ¶¨Î»¿éÁĞ±í£¨´ø¹ö¶¯Ìõ£© ==========
+    // ========== ä¸Šè¡¨ï¼šé‡å®šä½å—åˆ—è¡¨ï¼ˆå¸¦æ»šåŠ¨æ¡ï¼‰ ==========
     ImGui::BeginChild("RelocBlocksChild", ImVec2(0, topH), true, ImGuiWindowFlags_HorizontalScrollbar);
     ImGuiTableFlags topFlags =
         ImGuiTableFlags_Borders |
@@ -330,13 +334,13 @@ void App::DrawBaseRelocaleView()
 
     if (ImGui::BeginTable("BaseRelocale Table", 3, topFlags))
     {
-        ImGui::TableSetupScrollFreeze(0, 1);//¶³½á±íÍ·
+        ImGui::TableSetupScrollFreeze(0, 1);//å†»ç»“è¡¨å¤´
         ImGui::TableSetupColumn(u8"", ImGuiTableColumnFlags_WidthFixed, 250.0f);
         ImGui::TableSetupColumn(u8"VirtualAddress", ImGuiTableColumnFlags_WidthStretch, 170.0f);
         ImGui::TableSetupColumn(u8"SizeOfBlock", ImGuiTableColumnFlags_WidthStretch, 170.0f);
         ImGui::TableHeadersRow();
 
-        //ÏÔÊ¾ËùÓĞ IMAGE_BASE_RELOCATION ĞÅÏ¢
+        //æ˜¾ç¤ºæ‰€æœ‰ IMAGE_BASE_RELOCATION ä¿¡æ¯
         PIMAGE_BASE_RELOCATION pBaseRelocation= (PIMAGE_BASE_RELOCATION)(currentPE->fileReadBuffer + RvaToFoa(currentPE->relocaleDir->VirtualAddress));
 
         int index = 0;
@@ -362,12 +366,12 @@ void App::DrawBaseRelocaleView()
 
         ImGui::EndTable();
     }
-    ImGui::EndChild();//ÉÏ±í½áÊø
+    ImGui::EndChild();//ä¸Šè¡¨ç»“æŸ
 
-    // ========== ÏÂ±í£ºÑ¡ÖĞ¿éµÄ entries£¨´ø¹ö¶¯Ìõ£© ==========
+    // ========== ä¸‹è¡¨ï¼šé€‰ä¸­å—çš„ entriesï¼ˆå¸¦æ»šåŠ¨æ¡ï¼‰ ==========
     ImGui::BeginChild("RelocEntriesChild", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
 
-    //ÕÒµ½ËùÑ¡ÖĞµÄ IMAGE_BASE_RELOCATION
+    //æ‰¾åˆ°æ‰€é€‰ä¸­çš„ IMAGE_BASE_RELOCATION
     PIMAGE_BASE_RELOCATION pBaseRelocation = (PIMAGE_BASE_RELOCATION)(currentPE->fileReadBuffer + RvaToFoa(currentPE->relocaleDir->VirtualAddress));
     PIMAGE_BASE_RELOCATION selectedBaseRelocation = NULL;
     for (int i = 0; i <= selectedRelocationIndex; i++)
@@ -383,10 +387,10 @@ void App::DrawBaseRelocaleView()
 
     if (selectedBaseRelocation && ImGui::BeginTable("RelocationBlockEntrys", 3, bottomFlags))
     {
-        ImGui::TableSetupScrollFreeze(0, 1); // ¶³½á±íÍ·
+        ImGui::TableSetupScrollFreeze(0, 1); // å†»ç»“è¡¨å¤´
         ImGui::TableSetupColumn(u8"index", ImGuiTableColumnFlags_WidthFixed, 80);
-        ImGui::TableSetupColumn(u8"¸ß4Î»(ÖØ¶¨Î»ÀàĞÍ)", ImGuiTableColumnFlags_WidthStretch);
-        ImGui::TableSetupColumn(u8"µÍ12Î»(ÖØ¶¨Î»Æ«ÒÆÁ¿)", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"é«˜4ä½(é‡å®šä½ç±»å‹)", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"ä½12ä½(é‡å®šä½åç§»é‡)", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
         DWORD entryCount=(selectedBaseRelocation->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION))/sizeof(WORD);
         PWORD pEntry = PWORD((PCHAR)selectedBaseRelocation + sizeof(IMAGE_BASE_RELOCATION));
@@ -395,10 +399,10 @@ void App::DrawBaseRelocaleView()
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%u", i);
-            //¸ß4Î»
+            //é«˜4ä½
             ImGui::TableSetColumnIndex(1);
             ImGui::Text("0x%01x", ((*pEntry) & 0xf000) >> 12);
-            //µÍ12Î»
+            //ä½12ä½
             ImGui::TableSetColumnIndex(2);
             ImGui::Text("0x%04x", (*pEntry) & 0x0fff);
             pEntry++;
@@ -421,26 +425,26 @@ void App::DrawImportView()
     ImGui::Separator();
 
 
-    // ¼ÆËã¿ÉÓÃ¸ß¶È
+    // è®¡ç®—å¯ç”¨é«˜åº¦
     float availY = ImGui::GetContentRegionAvail().y;
     float gap = ImGui::GetStyle().ItemSpacing.y;
 
-    // Ô¤ÁôÖĞ¼ä±êÌâÇøÓò¸ß¶È£¨Separator + Text + Spacing£©
+    // é¢„ç•™ä¸­é—´æ ‡é¢˜åŒºåŸŸé«˜åº¦ï¼ˆSeparator + Text + Spacingï¼‰
     float midH = 0.0f;
-    midH += ImGui::GetFrameHeightWithSpacing(); // ´óÖÂ°´Ò»ĞĞÎÄ×Ö+spacingËã
-    midH += ImGui::GetStyle().SeparatorTextBorderSize; // ¿ÉºöÂÔ£¬µ«±£ÊØÒ»µã
-    midH += gap; // ¶îÍâ¼ä¾à
+    midH += ImGui::GetFrameHeightWithSpacing(); // å¤§è‡´æŒ‰ä¸€è¡Œæ–‡å­—+spacingç®—
+    midH += ImGui::GetStyle().SeparatorTextBorderSize; // å¯å¿½ç•¥ï¼Œä½†ä¿å®ˆä¸€ç‚¹
+    midH += gap; // é¢å¤–é—´è·
 
-    // °ÑÖĞ¼äÇøÓò¿Ûµô£¬ÔÙ·ÖÅä¸øÉÏÏÂ±í¸ñ
+    // æŠŠä¸­é—´åŒºåŸŸæ‰£æ‰ï¼Œå†åˆ†é…ç»™ä¸Šä¸‹è¡¨æ ¼
     float remainY = availY - midH;
-    if (remainY < 200.0f) remainY = availY; // Ì«Ğ¡¾Í±ğ¿ÛÁË£¬±ÜÃâ¸ºÊı
+    if (remainY < 200.0f) remainY = availY; // å¤ªå°å°±åˆ«æ‰£äº†ï¼Œé¿å…è´Ÿæ•°
 
     float topH = remainY * 0.45f;
     float bottomH = remainY - topH;
     if (bottomH < 100.0f) bottomH = 100.0f;
 
 
-    // ========== ÉÏ±í  ========== 
+    // ========== ä¸Šè¡¨  ========== 
     ImGui::BeginChild("Import top window", ImVec2(0, topH), true, ImGuiWindowFlags_HorizontalScrollbar);
 
     ImGuiTableFlags topFlags =
@@ -450,7 +454,7 @@ void App::DrawImportView()
 
     if (ImGui::BeginTable("Import Table", 5, topFlags))
     {
-        ImGui::TableSetupScrollFreeze(0, 1);//¶³½á±íÍ·
+        ImGui::TableSetupScrollFreeze(0, 1);//å†»ç»“è¡¨å¤´
         ImGui::TableSetupColumn(u8"DLL Name", ImGuiTableColumnFlags_WidthFixed, 200.0f);
         ImGui::TableSetupColumn(u8"OriginalFirstThunk", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableSetupColumn(u8"TimeDateStamp", ImGuiTableColumnFlags_WidthStretch);
@@ -461,7 +465,7 @@ void App::DrawImportView()
         for (size_t i = 0; i < importDatas.size(); i++)
         {
             ImGui::TableNextRow();
-            // µÚÒ»ÁĞ selectable
+            // ç¬¬ä¸€åˆ— selectable
             ImGui::TableSetColumnIndex(0);
             if (ImGui::Selectable(importDatas[i].dllInfo.dllName.c_str(), selectedImportIndex == i,
                 ImGuiSelectableFlags_SpanAllColumns))
@@ -481,7 +485,7 @@ void App::DrawImportView()
         
         ImGui::EndTable();
     }
-    ImGui::EndChild();// ========== ÉÏ±í½áÊø  ========== 
+    ImGui::EndChild();// ========== ä¸Šè¡¨ç»“æŸ  ========== 
 
 
 
@@ -489,7 +493,7 @@ void App::DrawImportView()
     ImGui::Separator();
     ImGui::Text("Imported Functions");
 
-    // ========== ÏÂ±í  ========== 
+    // ========== ä¸‹è¡¨  ========== 
     ImGui::BeginChild("Import bottom window", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
 
     ImGuiTableFlags bottomFlags =
@@ -501,15 +505,15 @@ void App::DrawImportView()
     if (selectedImportIndex!=-1 && ImGui::BeginTable("ImportFunctions", 2,
         bottomFlags))
     {
-        ImGui::TableSetupScrollFreeze(0, 1);//¶³½á±íÍ·
-        ImGui::TableSetupColumn(u8"Ordinal(ĞòºÅ)", ImGuiTableColumnFlags_WidthFixed, 150);
+        ImGui::TableSetupScrollFreeze(0, 1);//å†»ç»“è¡¨å¤´
+        ImGui::TableSetupColumn(u8"Ordinal(åºå·)", ImGuiTableColumnFlags_WidthFixed, 150);
         ImGui::TableSetupColumn(u8"Function Name", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
 
         for (size_t i = 0; i < importDatas[selectedImportIndex].funcsInfo.size(); i++)
         {
             ImGui::TableNextRow();
-            // µÚÒ»ÁĞ selectable
+            // ç¬¬ä¸€åˆ— selectable
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].ordinal.c_str());
             ImGui::TableSetColumnIndex(1);
@@ -519,7 +523,7 @@ void App::DrawImportView()
 
         ImGui::EndTable();
     }
-    ImGui::EndChild();//====== ÏÂ±í½áÊø ======
+    ImGui::EndChild();//====== ä¸‹è¡¨ç»“æŸ ======
 
 
     ImGui::EndChild();
@@ -528,13 +532,13 @@ DWORD App::RvaToFoa(DWORD rva)
 {
     DWORD sizeOfHeaders;
 
-    // ÔÚ headers ÖĞ
+    // åœ¨ headers ä¸­
     if (rva < currentPE->sectionHeaders[0].VirtualAddress)
     {
         return rva;
     }
 
-    // ±éÀú section
+    // éå† section
     for (DWORD i = 0; i < currentPE->sectionCount; i++)
     {
         PIMAGE_SECTION_HEADER section = &currentPE->sectionHeaders[i];
@@ -565,8 +569,8 @@ void App::DrawExportView()
 
     if (ImGui::BeginTable("Export Table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
     {
-        ImGui::TableSetupColumn(u8"µ¼³ö±àºÅ", ImGuiTableColumnFlags_WidthFixed, 150.0f);
-        ImGui::TableSetupColumn(u8"º¯Êıµ¼³öÃû", ImGuiTableColumnFlags_WidthFixed, 100.0f);
+        ImGui::TableSetupColumn(u8"å¯¼å‡ºç¼–å·", ImGuiTableColumnFlags_WidthFixed, 150.0f);
+        ImGui::TableSetupColumn(u8"å‡½æ•°å¯¼å‡ºå", ImGuiTableColumnFlags_WidthFixed, 100.0f);
         ImGui::TableSetupColumn(u8"RVA", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
         
@@ -739,10 +743,10 @@ void App::DrawPETree()
 {
     ImGui::BeginChild("PE Tree");
 
-    // DOS Header ×÷ÎªÒ»¸ö Leaf ½Úµã
+    // DOS Header ä½œä¸ºä¸€ä¸ª Leaf èŠ‚ç‚¹
     if (ImGui::TreeNodeEx("DOS Header", ImGuiTreeNodeFlags_Leaf))
     {
-        // Ê¹ÓÃ ImGui::IsItemClicked À´¼ì²âÊÇ·ñµã»÷ÁË´Ë½Úµã
+        // ä½¿ç”¨ ImGui::IsItemClicked æ¥æ£€æµ‹æ˜¯å¦ç‚¹å‡»äº†æ­¤èŠ‚ç‚¹
         if (ImGui::IsItemClicked())
         {
             currentView = View_DOS;
@@ -753,7 +757,7 @@ void App::DrawPETree()
     // NT HEADER
     if (ImGui::TreeNodeEx("NT Header", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        // ×Ó½Úµã£ºSignature
+        // å­èŠ‚ç‚¹ï¼šSignature
         if (ImGui::TreeNodeEx("Signature", ImGuiTreeNodeFlags_Leaf))
         {
             if (ImGui::IsItemClicked())
@@ -763,7 +767,7 @@ void App::DrawPETree()
             ImGui::TreePop();
         }
 
-        // ×Ó½Úµã£ºFileHeader
+        // å­èŠ‚ç‚¹ï¼šFileHeader
         if (ImGui::TreeNodeEx("FileHeader", ImGuiTreeNodeFlags_Leaf))
         {
             if (ImGui::IsItemClicked())
@@ -773,7 +777,7 @@ void App::DrawPETree()
             ImGui::TreePop();
         }
 
-        // ×Ó½Úµã£ºOptionalHeader
+        // å­èŠ‚ç‚¹ï¼šOptionalHeader
         if (ImGui::TreeNodeEx("OptionalHeader", ImGuiTreeNodeFlags_Leaf))
         {
             if (ImGui::IsItemClicked())
@@ -783,10 +787,10 @@ void App::DrawPETree()
             ImGui::TreePop();
         }
 
-        ImGui::TreePop(); // ¹Ø±Õ NT Header
+        ImGui::TreePop(); // å…³é—­ NT Header
     }
 
-    // Sections ×÷Îª Leaf ½Úµã
+    // Sections ä½œä¸º Leaf èŠ‚ç‚¹
     if (ImGui::TreeNodeEx("Section Headers", ImGuiTreeNodeFlags_Leaf))
     {
         if (ImGui::IsItemClicked())
@@ -796,7 +800,7 @@ void App::DrawPETree()
         ImGui::TreePop();
     }
 
-    // Import Table ×÷Îª Leaf ½Úµã
+    // Import Table ä½œä¸º Leaf èŠ‚ç‚¹
     if (ImGui::TreeNodeEx("Import", ImGuiTreeNodeFlags_Leaf))
     {
         if (ImGui::IsItemClicked())
@@ -806,7 +810,7 @@ void App::DrawPETree()
         ImGui::TreePop();
     }
 
-    // Export Table ×÷Îª Leaf ½Úµã
+    // Export Table ä½œä¸º Leaf èŠ‚ç‚¹
     if (ImGui::TreeNodeEx("Export", ImGuiTreeNodeFlags_Leaf))
     {
         if (ImGui::IsItemClicked())
@@ -816,7 +820,7 @@ void App::DrawPETree()
         ImGui::TreePop();
     }
 
-    // Resource Table ×÷Îª Leaf ½Úµã
+    // Resource Table ä½œä¸º Leaf èŠ‚ç‚¹
     if (ImGui::TreeNodeEx("Resource", ImGuiTreeNodeFlags_Leaf))
     {
         if (ImGui::IsItemClicked())
@@ -845,28 +849,28 @@ void App::DrawMenuBar()
 {
     if (ImGui::BeginMainMenuBar())
     {
-        if (ImGui::BeginMenu(u8"ÎÄ¼ş"))
+        if (ImGui::BeginMenu(u8"æ–‡ä»¶"))
         {
-            if (ImGui::MenuItem(u8"´ò¿ª"))
+            if (ImGui::MenuItem(u8"æ‰“å¼€"))
             {
                 OpenFile();
             }
 
-            if (ImGui::MenuItem(u8"¹Ø±Õ"))
+            if (ImGui::MenuItem(u8"å…³é—­"))
             {
                 CloseFile();
             }
 
             ImGui::Separator();
 
-            if (ImGui::MenuItem(u8"ÍË³ö"))
+            if (ImGui::MenuItem(u8"é€€å‡º"))
             {
                 PostQuitMessage(0);
             }
 
             ImGui::EndMenu();
         }
-        if (ImGui::BeginMenu(u8"ÊÓÍ¼"))
+        if (ImGui::BeginMenu(u8"è§†å›¾"))
         {
             if (ImGui::MenuItem(u8"Sections"))
             {
@@ -884,7 +888,7 @@ void App::DrawMenuBar()
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu(u8"¹¤¾ß"))
+        if (ImGui::BeginMenu(u8"å·¥å…·"))
         {
             ImGui::Text(u8"PE Parser");
             ImGui::Text(u8"Author: Vronsky");
@@ -892,9 +896,9 @@ void App::DrawMenuBar()
             ImGui::EndMenu();
         }
 
-        if (ImGui::BeginMenu(u8"°ïÖú"))
+        if (ImGui::BeginMenu(u8"å¸®åŠ©"))
         {
-            if (ImGui::MenuItem(u8"¹ØÓÚ"))
+            if (ImGui::MenuItem(u8"å…³äº"))
             {
 
             }
@@ -1048,7 +1052,7 @@ App::App()
         MessageBoxA(0, "PEFile: VirtualAlloc failed", 0, 0);
         return;
     }
-    currentView = View_None; // È·±£³õÊ¼»¯Îª View_None
+    currentView = View_None; // ç¡®ä¿åˆå§‹åŒ–ä¸º View_None
 }
 
 App::~App()
@@ -1097,8 +1101,8 @@ App::~App()
 
      ImGui::BeginChild("HexDump", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-     // Ô¤¹ÀÃ¿ĞĞ×Ö·ûÊı£ºÆ«ÒÆ(8) + ¿Õ¸ñ + hex(3*16) + ¿Õ¸ñ + ascii(16) + ½áÊø
-     // ÓÃ ImGuiListClipper ±ÜÃâ´óÊı¾İ¿¨¶Ù
+     // é¢„ä¼°æ¯è¡Œå­—ç¬¦æ•°ï¼šåç§»(8) + ç©ºæ ¼ + hex(3*16) + ç©ºæ ¼ + ascii(16) + ç»“æŸ
+     // ç”¨ ImGuiListClipper é¿å…å¤§æ•°æ®å¡é¡¿
      const size_t rowCount = (size + bytesPerRow - 1) / bytesPerRow;
 
      ImGuiListClipper clipper;
@@ -1114,10 +1118,10 @@ App::~App()
              char line[256]{};
              char* p = line;
 
-             // Æ«ÒÆ
+             // åç§»
              p += sprintf_s(p, sizeof(line) - (p - line), "%08llX  ", (unsigned long long)offset);
 
-             // Hex Çø
+             // Hex åŒº
              for (size_t i = 0; i < bytesPerRow; ++i)
              {
                  if (i < count)
@@ -1126,10 +1130,10 @@ App::~App()
                      p += sprintf_s(p, sizeof(line) - (p - line), "   ");
              }
 
-             // ·Ö¸ô
+             // åˆ†éš”
              p += sprintf_s(p, sizeof(line) - (p - line), " ");
 
-             // ASCII Çø
+             // ASCII åŒº
              for (size_t i = 0; i < count; ++i)
              {
                  BYTE c = data[offset + i];

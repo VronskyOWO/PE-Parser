@@ -18,6 +18,15 @@ public:
 	std::vector <ImportData> GetImportData();
 	OptionalHeaderData GetNtOptionalHeaderData();
 	std::vector<std::vector<BaseData>> GetSectionsTableData();
+	ResourceNode GetResourcesData();
+	void ParseResourceNode(
+		PIMAGE_RESOURCE_DIRECTORY dir,
+		DWORD baseRva,
+		int level,
+		ResourceNode& node);
+
+	void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
+	const char* GetResTypeName(WORD id);
 	void CloseFile();
 	BOOLEAN GetOpenStatus();
 	DWORD RvaToFoa(DWORD rva);
