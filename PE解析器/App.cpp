@@ -236,7 +236,7 @@ void App::DrawResourceNode(ResourceNode& node)
 
 void App::DrawBaseRelocaleView()
 {
-    if (currentPE->relocaleDir->VirtualAddress == NULL)
+    if (baseRelocaleData.empty())
     {
         ImGui::Text(u8"no relocale table");
         return;
@@ -266,28 +266,23 @@ void App::DrawBaseRelocaleView()
         ImGui::TableSetupColumn(u8"SizeOfBlock", ImGuiTableColumnFlags_WidthStretch, 170.0f);
         ImGui::TableHeadersRow();
 
-        //显示所有 IMAGE_BASE_RELOCATION 信息
-        PIMAGE_BASE_RELOCATION pBaseRelocation= (PIMAGE_BASE_RELOCATION)(currentPE->fileReadBuffer + RvaToFoa(currentPE->relocaleDir->VirtualAddress));
-
-        int index = 0;
-        while (pBaseRelocation->VirtualAddress!=0)
+        
+        for (int i = 0; i < baseRelocaleData.size(); i++)
         {
             CHAR arr[128] = { 0 };
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            sprintf_s(arr, sizeof(arr), "IMAGE_BASE_RELOCATION[%d]", index);
-            if (ImGui::Selectable(arr, selectedRelocationIndex == index,
+            sprintf_s(arr, sizeof(arr), "IMAGE_BASE_RELOCATION[%d]", i);
+            if (ImGui::Selectable(arr, selectedRelocationIndex == i,
                 ImGuiSelectableFlags_SpanAllColumns))
             {
-                selectedRelocationIndex = index;
+                selectedRelocationIndex = i;
             }
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("0x%08x", pBaseRelocation->VirtualAddress);
+            ImGui::Text("0x%08x", baseRelocaleData[i].blockInfo.VirtualAddress);
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("0x%08x", pBaseRelocation->SizeOfBlock);
+            ImGui::Text("0x%08x", baseRelocaleData[i].blockInfo.SizeOfBlock);
 
-            pBaseRelocation = (PIMAGE_BASE_RELOCATION)((PCHAR)pBaseRelocation + pBaseRelocation->SizeOfBlock);
-            index++;
         }
 
         ImGui::EndTable();
@@ -297,41 +292,31 @@ void App::DrawBaseRelocaleView()
     // ========== 下表：选中块的 entries（带滚动条） ==========
     ImGui::BeginChild("RelocEntriesChild", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
 
-    //找到所选中的 IMAGE_BASE_RELOCATION
-    PIMAGE_BASE_RELOCATION pBaseRelocation = (PIMAGE_BASE_RELOCATION)(currentPE->fileReadBuffer + RvaToFoa(currentPE->relocaleDir->VirtualAddress));
-    PIMAGE_BASE_RELOCATION selectedBaseRelocation = NULL;
-    for (int i = 0; i <= selectedRelocationIndex; i++)
-    {
-        selectedBaseRelocation = pBaseRelocation;
-        pBaseRelocation = (PIMAGE_BASE_RELOCATION)((PCHAR)pBaseRelocation + pBaseRelocation->SizeOfBlock);
-    }
+    
     ImGuiTableFlags bottomFlags =
         ImGuiTableFlags_Borders |
         ImGuiTableFlags_Resizable |
         ImGuiTableFlags_ScrollY |
         ImGuiTableFlags_RowBg;
 
-    if (selectedBaseRelocation && ImGui::BeginTable("RelocationBlockEntrys", 3, bottomFlags))
+    if (selectedRelocationIndex != -1 && ImGui::BeginTable("RelocationBlockEntrys", 3, bottomFlags))
     {
         ImGui::TableSetupScrollFreeze(0, 1); // 冻结表头
         ImGui::TableSetupColumn(u8"index", ImGuiTableColumnFlags_WidthFixed, 80);
         ImGui::TableSetupColumn(u8"高4位(重定位类型)", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableSetupColumn(u8"低12位(重定位偏移量)", ImGuiTableColumnFlags_WidthStretch);
         ImGui::TableHeadersRow();
-        DWORD entryCount=(selectedBaseRelocation->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION))/sizeof(WORD);
-        PWORD pEntry = PWORD((PCHAR)selectedBaseRelocation + sizeof(IMAGE_BASE_RELOCATION));
-        for (size_t i = 0; i < entryCount; i++)
+        for (size_t i = 0; i < baseRelocaleData[selectedRelocationIndex].blockEntrys.size(); i++)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
             ImGui::Text("%u", i);
             //高4位
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("0x%01x", ((*pEntry) & 0xf000) >> 12);
+            ImGui::Text("0x%01x", ((baseRelocaleData[selectedRelocationIndex].blockEntrys[i]) & 0xf000) >> 12);
             //低12位
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("0x%04x", (*pEntry) & 0x0fff);
-            pEntry++;
+            ImGui::Text("0x%04x", (baseRelocaleData[selectedRelocationIndex].blockEntrys[i]) & 0x0fff);
         }
 
         
@@ -345,7 +330,6 @@ void App::DrawBaseRelocaleView()
 
 void App::DrawImportView()
 {
-    std::vector<ImportData> importDatas= peCore.GetImportData();
     ImGui::BeginChild("Import View");
     ImGui::Text("Import Information");
     ImGui::Separator();
@@ -488,7 +472,6 @@ DWORD App::RvaToFoa(DWORD rva)
 
 void App::DrawExportView()
 {
-    std::vector<ExportData> exportData= peCore.GetExportData();
     ImGui::BeginChild("Export View");
     ImGui::Text("Export Information");
     ImGui::Separator();
@@ -519,14 +502,13 @@ void App::DrawExportView()
 }
 void App::DrawSectionsView()
 {
-    std::vector<std::vector<BaseData>> data =peCore.GetSectionsTableData();
     ImGui::BeginChild("Section Headers View");
     ImGui::Text("Section Headers Information");
     ImGui::Separator();
     if (ImGui::BeginTable("Section Headers Table", 3, ImGuiTableFlags_Borders | ImGuiTableFlags_Resizable))
     {
         ImGui::TableHeadersRow();
-        for (size_t i = 0; i < data.size(); i++)
+        for (size_t i = 0; i < sectionHeadersData.size(); i++)
         {
             ImGui::TableNextRow();
             ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, IM_COL32(140, 140, 140, 255));
@@ -538,16 +520,16 @@ void App::DrawSectionsView()
             ImGui::Text("description");
 
             
-            for (size_t j = 0; j < data[i].size(); j++)
+            for (size_t j = 0; j < sectionHeadersData[i].size(); j++)
             {
 
                 ImGui::TableNextRow();
                 ImGui::TableSetColumnIndex(0);
-                ImGui::Text("%s", data[i][j].field.c_str());
+                ImGui::Text("%s", sectionHeadersData[i][j].field.c_str());
                 ImGui::TableSetColumnIndex(1);
-                ImGui::Text("%s", data[i][j].value.c_str());
+                ImGui::Text("%s", sectionHeadersData[i][j].value.c_str());
                 ImGui::TableSetColumnIndex(2);
-                ImGui::Text("%s", data[i][j].description.c_str());
+                ImGui::Text("%s", sectionHeadersData[i][j].description.c_str());
             }
 
         }
@@ -561,7 +543,6 @@ void App::DrawSectionsView()
 
 void App::DrawNtOptionalHeaderView()
 {
-    OptionalHeaderData optionalHeaderData= peCore.GetNtOptionalHeaderData();
     ImGui::BeginChild("NT Optional Header View");
     ImGui::Text("NT_Header.OptionalHeader Information");
     ImGui::Separator();
@@ -609,7 +590,6 @@ void App::DrawNtOptionalHeaderView()
 void App::DrawNtFileHeaderView()
 {
     
-    std::vector<NtFileHeaderData> viewData=peCore.GetNtFileHeaderData();
     ImGui::BeginChild("NT File Header View");
     ImGui::Text("NT_Header.FileHeader Information");
     ImGui::Separator();
@@ -621,15 +601,15 @@ void App::DrawNtFileHeaderView()
         ImGui::TableSetupColumn("Description", ImGuiTableColumnFlags_WidthStretch);
 
         ImGui::TableHeadersRow();
-        for (size_t i = 0; i < viewData.size(); i++)
+        for (size_t i = 0; i < ntFileHeaderData.size(); i++)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%s", viewData[i].field.c_str());
+            ImGui::Text("%s", ntFileHeaderData[i].field.c_str());
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%s", viewData[i].value.c_str());
+            ImGui::Text("%s", ntFileHeaderData[i].value.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text("%s", viewData[i].description.c_str());
+            ImGui::Text("%s", ntFileHeaderData[i].description.c_str());
         }
         ImGui::EndTable();
     }
@@ -638,7 +618,7 @@ void App::DrawNtFileHeaderView()
 }
 void App::DrawNtSignatureView()
 {
-    NtSignatureData sign= peCore.GetNtSignatureData();
+ 
     ImGui::BeginChild("NT Signature  View");
 
     ImGui::Text("NT_Header.Signature Information");
@@ -654,11 +634,11 @@ void App::DrawNtSignatureView()
 
         ImGui::TableNextRow();
         ImGui::TableSetColumnIndex(0);
-        ImGui::Text("%s",sign.field.c_str());
+        ImGui::Text("%s", ntSignatureData.field.c_str());
         ImGui::TableSetColumnIndex(1);
-        ImGui::Text("%s", sign.value.c_str());
+        ImGui::Text("%s", ntSignatureData.value.c_str());
         ImGui::TableSetColumnIndex(2);
-        ImGui::Text("%s",sign.description.c_str());
+        ImGui::Text("%s", ntSignatureData.description.c_str());
 
         ImGui::EndTable();
     }
@@ -870,9 +850,16 @@ void App::OpenFile()
         }
         currentView = View_DOS;
     }
-
+    importDatas = peCore.GetImportData();
+    exportData = peCore.GetExportData();
+    sectionHeadersData = peCore.GetSectionsTableData();
+    optionalHeaderData = peCore.GetNtOptionalHeaderData();
+    dosHeaderData = peCore.GetDosHeaderData();
+    ntSignatureData = peCore.GetNtSignatureData();
     resourceData = peCore.GetResourcesData();
+    ntFileHeaderData = peCore.GetNtFileHeaderData();
     pSelectedNode = nullptr;
+    baseRelocaleData = peCore.GetBaseRelocaleData();
     
 }
 
@@ -939,7 +926,7 @@ void App::SetDarkTheme()
 
 void App::DrawDOSHeaderView()
 {
-    std::vector<DosHeaderData> data = peCore.GetDosHeaderData();
+    
     ImGui::BeginChild("DOS Header View");
 
     ImGui::Text("DOS Header Information");
@@ -955,15 +942,15 @@ void App::DrawDOSHeaderView()
 
         auto* dos = currentPE->pDosHeader;
 
-        for (size_t i = 0; i < data.size(); i++)
+        for (size_t i = 0; i < dosHeaderData.size(); i++)
         {
             ImGui::TableNextRow();
             ImGui::TableSetColumnIndex(0);
-            ImGui::Text(data[i].field.c_str());
+            ImGui::Text(dosHeaderData[i].field.c_str());
             ImGui::TableSetColumnIndex(1);
-            ImGui::Text(data[i].value.c_str());
+            ImGui::Text(dosHeaderData[i].value.c_str());
             ImGui::TableSetColumnIndex(2);
-            ImGui::Text(data[i].description.c_str());
+            ImGui::Text(dosHeaderData[i].description.c_str());
         }
 
 

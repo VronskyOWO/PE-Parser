@@ -18,6 +18,7 @@ public:
 	std::vector <ImportData> GetImportData();
 	OptionalHeaderData GetNtOptionalHeaderData();
 	std::vector<std::vector<BaseData>> GetSectionsTableData();
+	std::vector<BaseRelocaleEntry> GetBaseRelocaleData();
 	ResourceNode GetResourcesData();
 	void ParseResourceNode(
 		PIMAGE_RESOURCE_DIRECTORY dir,

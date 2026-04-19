@@ -530,6 +530,30 @@ std::vector<std::vector<BaseData>> PECore::GetSectionsTableData()
 
 	return data;
 }
+std::vector<BaseRelocaleEntry> PECore::GetBaseRelocaleData()
+{
+	std::vector<BaseRelocaleEntry> result{};
+	PIMAGE_BASE_RELOCATION pBaseRelocation = (PIMAGE_BASE_RELOCATION)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(currentFile.relocaleDir->VirtualAddress));
+
+	while (pBaseRelocation->VirtualAddress != 0)
+	{
+		BaseRelocaleEntry entry{};
+		entry.blockInfo.VirtualAddress = pBaseRelocation->VirtualAddress;
+		entry.blockInfo.SizeOfBlock = pBaseRelocation->SizeOfBlock;
+
+		DWORD entryCount = (pBaseRelocation->SizeOfBlock - sizeof(IMAGE_BASE_RELOCATION)) / sizeof(WORD);
+		PWORD pEntry = PWORD((PCHAR)pBaseRelocation + sizeof(IMAGE_BASE_RELOCATION));
+		for (size_t i = 0; i < entryCount; i++)
+		{
+			entry.blockEntrys.push_back(*pEntry);
+			pEntry++;
+		}
+		pBaseRelocation = (PIMAGE_BASE_RELOCATION)((PCHAR)pBaseRelocation + pBaseRelocation->SizeOfBlock);
+		result.push_back(entry);
+	}
+
+	return result;
+}
 ResourceNode PECore::GetResourcesData()
 {
 

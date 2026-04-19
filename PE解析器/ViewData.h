@@ -86,3 +86,10 @@ struct ResourceNode
 	std::optional<ResourceData> data;
 };
 
+
+struct BaseRelocaleEntry
+{
+	IMAGE_BASE_RELOCATION blockInfo;
+	std::vector<WORD> blockEntrys;
+};
+

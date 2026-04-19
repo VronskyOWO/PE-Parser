@@ -37,8 +37,16 @@ public:
 	void SetDarkTheme();
 	const char* GetResTypeName(WORD id);
 private:
-	ResourceNode resourceData;
-	ResourceNode* pSelectedNode;
+	std::vector<ImportData> importDatas{};
+	std::vector<ExportData> exportData{};
+	std::vector<std::vector<BaseData>> sectionHeadersData;
+	OptionalHeaderData optionalHeaderData{};
+	std::vector<NtFileHeaderData> ntFileHeaderData{};
+	NtSignatureData ntSignatureData{};
+	std::vector<DosHeaderData> dosHeaderData{};
+	std::vector<BaseRelocaleEntry> baseRelocaleData{};
+	ResourceNode resourceData{};
+	ResourceNode* pSelectedNode{};
 	SelectedResData selectedResData{};
 	int currentResTypeId = -1;
 	int selectedImportIndex = -1;
