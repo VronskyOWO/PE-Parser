@@ -25,7 +25,6 @@ public:
 		int level,
 		ResourceNode& node);
 
-	void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
 	const char* GetResTypeName(WORD id);
 	void CloseFile();
 	BOOLEAN GetOpenStatus();

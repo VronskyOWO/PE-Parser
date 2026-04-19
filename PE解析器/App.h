@@ -38,6 +38,7 @@ public:
 	const char* GetResTypeName(WORD id);
 private:
 	ResourceNode resourceData;
+	ResourceNode* pSelectedNode;
 	SelectedResData selectedResData{};
 	int currentResTypeId = -1;
 	int selectedImportIndex = -1;
@@ -52,7 +53,7 @@ private:
 	void DrawExportView();
 	void DrawImportView();
 	void DrawResourceView();
-	void DrawResourceNode(const ResourceNode& node);
+	void DrawResourceNode(ResourceNode& node);
 	//void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
 	void DrawBaseRelocaleView();
 	void DrawMenuBar();

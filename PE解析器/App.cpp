@@ -92,64 +92,54 @@ void App::DrawPEView()
 
 void App::DrawResourceView()
 {
-    resourceData = peCore.GetResourcesData();
-  /*  if (resourceData.empty())
-    {
-        ImGui::Text(u8"Resource data is empty");
-    }*/
     ImGui::BeginChild("Resource View");
 
-    ImGui::Text(u8"Resource Tree(一级目录、二级目录、三级目录)");
+    ImGui::Text(u8"Resource Viewer");
     ImGui::Separator();
 
-   // DrawResourceNode()
-    // --- 树 ---
-    //DrawResourceNode(root, baseRva,1);
-    // --- 详情 ---
+    // ⭐ 用当前剩余高度
+    float availY = ImGui::GetContentRegionAvail().y;
+
+    // 上半部分高度（比如 50%）
+    float topH = availY * 0.5f;
+
+    // =========================
+    // 上：资源树
+    // =========================
+    ImGui::BeginChild("ResourceTree", ImVec2(0, topH), true);
+
+    DrawResourceNode(resourceData);
+
+    ImGui::EndChild();
+
     ImGui::Separator();
 
-    // Start two columns layout
-    ImGui::Columns(2, "ResourceViewColumns", false);
-    ImGui::Text("Resource Data Entry");
+    // =========================
+    // 下：直接吃剩余空间（关键！）
+    // =========================
+    ImGui::BeginChild("ResourceData", ImVec2(0, 0), true);
 
-    // Left column - Resource Data Entry Details
-    ImGui::BeginChild("Resource Details", ImVec2(0, 300), true);
-    if (selectedResData.resDataEntryRva)
+    if (pSelectedNode && pSelectedNode->level == 3 && pSelectedNode->data.has_value())
     {
-        DWORD resDataEntryFoa = RvaToFoa(selectedResData.resDataEntryRva);
-        PIMAGE_RESOURCE_DATA_ENTRY pResDataEntry = (PIMAGE_RESOURCE_DATA_ENTRY)(currentPE->fileReadBuffer + resDataEntryFoa);
+        auto& data = pSelectedNode->data.value();
 
-        // 资源数据详细信息
-        ImGui::Text("OffsetToData 0x%X --------->", pResDataEntry->OffsetToData);
-        ImGui::Text("Size: 0x%X", pResDataEntry->Size);
-        ImGui::Text("CodePage: 0x%X", pResDataEntry->CodePage);
-        ImGui::Text("Reserved: 0x%X", pResDataEntry->Reserved);
+        ImGui::Text("DataRVA: 0x%X", data.dataRva);
+        ImGui::Text("Size:    0x%X", data.dataSize);
+        ImGui::Text("CodePage: 0x%X", data.codePage);
+
+        ImGui::Separator();
+
+        ImGui::Text("Raw Data:");
+        ImGui::Separator();
+
+        DrawHexDump(data.rawData.data(), data.rawData.size(), 16);
     }
     else
     {
-        ImGui::Text("No item selected");
+        ImGui::Text(u8"请选择一个 Level 3 资源节点");
     }
+
     ImGui::EndChild();
-
-    ImGui::NextColumn();  // Move to the next column (right column)
-    ImGui::Text("Resource Data");
-    // Right column - Resource Data
-    ImGui::BeginChild("Resource Data", ImVec2(0, 300), true);
-    if (selectedResData.dataRva)
-    {
-        DWORD dataFoa = RvaToFoa(selectedResData.dataRva);
-        BYTE* data = (BYTE*)(currentPE->fileReadBuffer + dataFoa);
-
-        ImGui::Text("raw bytes (size=0x%X)", selectedResData.dataSize);
-        ImGui::Separator();
-        DrawHexDump(data, (size_t)selectedResData.dataSize, 16);
-    }
-    ImGui::EndChild();
-
-   
-    // End columns
-    ImGui::Columns(1);
-
 
     ImGui::EndChild();
 }
@@ -178,135 +168,71 @@ const char* App::GetResTypeName(WORD id)
 }
 
 
-void App::DrawResourceNode(const ResourceNode& node)
+void App::DrawResourceNode(ResourceNode& node)
 {
-    if (!node.children.empty())
+    char label[256] = {};
+
+    // ===== 构造显示文本 =====
+    if (node.level == 0)
     {
-        if (ImGui::TreeNode(node.name.c_str()))
+        sprintf_s(label, u8"root");
+    }
+    else
+    {
+        switch (node.level)
+        {
+        case 1:
+            if (node.isNamed)
+                sprintf_s(label, u8"资源类型: %s", node.name.c_str());
+            else
+                sprintf_s(label, u8"资源类型ID: %d (%s)", node.id, GetResTypeName(node.id));
+            break;
+
+        case 2:
+            if (node.isNamed)
+                sprintf_s(label, u8"资源名: %s", node.name.c_str());
+            else
+                sprintf_s(label, u8"资源名ID: %d", node.id);
+            break;
+
+        case 3:
+            if (node.isNamed)
+                sprintf_s(label, u8"语言: %s", node.name.c_str());
+            else
+                sprintf_s(label, u8"语言ID: %d", node.id);
+            break;
+        }
+    }
+
+    ImGui::PushID(&node);
+
+    // ===== Level 3：叶子节点 =====
+    if (node.level == 3)
+    {
+        bool selected = (pSelectedNode == &node);
+
+        if (ImGui::Selectable(label, selected))
+        {
+            pSelectedNode = &node;
+        }
+    }
+    else
+    {
+        // ===== 非叶子节点 =====
+        if (ImGui::TreeNode(label))
         {
             for (auto& c : node.children)
+            {
                 DrawResourceNode(c);
-
+            }
             ImGui::TreePop();
         }
     }
-    else if (node.data.has_value())
-    {
-        if (ImGui::Selectable(node.name.c_str()))
-        {
-            //selectedNode = &node; //直接指向
-        }
-    }
+
+    ImGui::PopID();
 }
 
-//void DrawResourceNodexxxxxx(
-//    PIMAGE_RESOURCE_DIRECTORY dir,
-//    DWORD baseRva,
-//    DWORD level)
-//{
-//    auto entry = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(dir + 1);
-//    int count = dir->NumberOfNamedEntries + dir->NumberOfIdEntries;
-//
-//    for (int i = 0; i < count; i++, entry++)
-//    {
-//        char label[MAX_PATH] = { 0 };
-//
-//        // --- 解析名字 ---
-//        if (entry->NameIsString)
-//        {
-//            DWORD nameRva = baseRva + entry->NameOffset;
-//            DWORD nameFoa = RvaToFoa(nameRva);
-//
-//            auto str = (PIMAGE_RESOURCE_DIR_STRING_U)
-//                (currentPE->fileReadBuffer + nameFoa);
-//
-//            char utf8[MAX_PATH] = {0};
-//            WideCharToMultiByte(CP_UTF8, 0,
-//                str->NameString,
-//                str->Length,
-//                utf8, sizeof(utf8),
-//                NULL, NULL);
-//
-//            sprintf_s(label, u8"资源名: %s", utf8);
-//
-//
-//            switch (level)
-//            {
-//            case 1:
-//                sprintf_s(label, u8"资源类型: %s", utf8);
-//                break;
-//            case 2:
-//                sprintf_s(label, u8"资源名: %s", utf8);
-//                break;
-//            case 3:
-//                sprintf_s(label, u8"资源语言: %s", utf8);
-//                break;
-//            default:
-//                break;
-//            }
-//        }
-//        else
-//        {
-//            switch (level)
-//            {
-//            case 1:
-//                sprintf_s(label, u8"资源类型ID: %u--%s", entry->Id, GetResTypeName(entry->Id));
-//                currentResTypeId = entry->Id;
-//                break;
-//            case 2:
-//                sprintf_s(label, u8"资源名ID: %u", entry->Id);
-//                break;
-//            case 3:
-//                sprintf_s(label, u8"资源语言ID: %u", entry->Id);
-//                break;
-//            default:
-//                break;
-//            }
-//            
-//        }
-//
-//        
-//        // --- 子目录 ---
-//        if (entry->DataIsDirectory)
-//        {
-//            DWORD subRva = baseRva + (entry->OffsetToDirectory & 0x7FFFFFFF);
-//            DWORD subFoa = RvaToFoa(subRva);
-//
-//            auto subDir = (PIMAGE_RESOURCE_DIRECTORY)
-//                (currentPE->fileReadBuffer + subFoa);
-//
-//            ImGui::PushID(entry);
-//
-//            if (ImGui::TreeNode(label))
-//            {
-//                DrawResourceNode(subDir, baseRva, level + 1);
-//                ImGui::TreePop();
-//            }
-//
-//            ImGui::PopID();
-//
-//        }
-//        else
-//        {
-//            DWORD dataEntryRva = baseRva + (entry->OffsetToData & 0x7FFFFFFF);
-//            auto pResDataEntry = (PIMAGE_RESOURCE_DATA_ENTRY)(currentPE->fileReadBuffer + RvaToFoa(dataEntryRva));
-//            DWORD dataRva = pResDataEntry->OffsetToData;
-//            // 叶子节点 → selectable
-//            ImGui::PushID(entry);
-//
-//            if (ImGui::Selectable(label, selectedResData.dataRva == dataRva))
-//            {
-//                selectedResData.dataRva = dataRva;
-//                selectedResData.typeId = currentResTypeId;
-//                selectedResData.resDataEntryRva = dataEntryRva;
-//                selectedResData.dataSize = pResDataEntry->Size;
-//            }
-//
-//            ImGui::PopID();
-//
-//        }
-//    }
-//}
+
 
 void App::DrawBaseRelocaleView()
 {
@@ -912,6 +838,7 @@ void App::DrawMenuBar()
 void App::OpenFile()
 {
     CloseFile();
+
     if (!currentPE)
     {
         MessageBoxA(0, "currentPE == NULL", 0, 0);
@@ -943,6 +870,9 @@ void App::OpenFile()
         }
         currentView = View_DOS;
     }
+
+    resourceData = peCore.GetResourcesData();
+    pSelectedNode = nullptr;
     
 }
 
