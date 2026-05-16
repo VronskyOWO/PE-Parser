@@ -29,7 +29,7 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-
+ImFont* g_HexFont = nullptr;
 App app{};
 PECore peCore{};
 // Main code
@@ -85,6 +85,26 @@ int  WinMain( HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR  lpCmdLine,int n
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+
+    // ===== 加载UI字体 =====
+    ImFont* g_DefaultFont =
+        io.Fonts->AddFontFromFileTTF(
+            "C:\\Windows\\Fonts\\msyh.ttc",
+            18.0f,
+            nullptr,
+            io.Fonts->GetGlyphRangesChineseFull()
+        );
+
+    // ===== 加载Hex等宽字体 =====
+    g_HexFont =
+        io.Fonts->AddFontFromFileTTF(
+            "C:\\Windows\\Fonts\\consola.ttf",
+            16.0f
+        );
+
+    IM_ASSERT(g_DefaultFont);
+    IM_ASSERT(g_HexFont);
+   
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
     
@@ -99,8 +119,6 @@ int  WinMain( HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR  lpCmdLine,int n
     ImGui_ImplWin32_Init(hwnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
 
-    ImFont* font = io.Fonts->AddFontFromFileTTF(u8"c:\\Windows\\Fonts\\msyh.ttc");
-    IM_ASSERT(font != nullptr);
     // Our state
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 

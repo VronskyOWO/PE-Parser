@@ -1008,59 +1008,137 @@ App::~App()
 
 
 
- static void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow)
- {
-     if (!data || size == 0)
-     {
-         ImGui::Text("Empty");
-         return;
-     }
+ //static void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow)
+ //{
+ //    if (!data || size == 0)
+ //    {
+ //        ImGui::Text("Empty");
+ //        return;
+ //    }
 
-     ImGui::BeginChild("HexDump", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
+ //    ImGui::BeginChild("HexDump", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
 
-     // 预估每行字符数：偏移(8) + 空格 + hex(3*16) + 空格 + ascii(16) + 结束
-     // 用 ImGuiListClipper 避免大数据卡顿
-     const size_t rowCount = (size + bytesPerRow - 1) / bytesPerRow;
+ //    // 预估每行字符数：偏移(8) + 空格 + hex(3*16) + 空格 + ascii(16) + 结束
+ //    // 用 ImGuiListClipper 避免大数据卡顿
+ //    const size_t rowCount = (size + bytesPerRow - 1) / bytesPerRow;
 
-     ImGuiListClipper clipper;
-     clipper.Begin((int)rowCount);
-     while (clipper.Step())
-     {
-         for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
-         {
-             size_t offset = (size_t)row * bytesPerRow;
-             size_t count = bytesPerRow;
-             if (offset + count > size) count = size - offset;
+ //    ImGuiListClipper clipper;
+ //    clipper.Begin((int)rowCount);
+ //    while (clipper.Step())
+ //    {
+ //        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
+ //        {
+ //            size_t offset = (size_t)row * bytesPerRow;
+ //            size_t count = bytesPerRow;
+ //            if (offset + count > size) count = size - offset;
 
-             char line[256]{};
-             char* p = line;
+ //            char line[256]{};
+ //            char* p = line;
 
-             // 偏移
-             p += sprintf_s(p, sizeof(line) - (p - line), "%08llX  ", (unsigned long long)offset);
+ //            // 偏移
+ //            p += sprintf_s(p, sizeof(line) - (p - line), "%08llX  ", (unsigned long long)offset);
 
-             // Hex 区
-             for (size_t i = 0; i < bytesPerRow; ++i)
-             {
-                 if (i < count)
-                     p += sprintf_s(p, sizeof(line) - (p - line), "%02X ", data[offset + i]);
-                 else
-                     p += sprintf_s(p, sizeof(line) - (p - line), "   ");
-             }
+ //            // Hex 区
+ //            for (size_t i = 0; i < bytesPerRow; ++i)
+ //            {
+ //                if (i < count)
+ //                    p += sprintf_s(p, sizeof(line) - (p - line), "%02X ", data[offset + i]);
+ //                else
+ //                    p += sprintf_s(p, sizeof(line) - (p - line), "   ");
+ //            }
 
-             // 分隔
-             p += sprintf_s(p, sizeof(line) - (p - line), " ");
+ //            // 分隔
+ //            p += sprintf_s(p, sizeof(line) - (p - line), " ");
 
-             // ASCII 区
-             for (size_t i = 0; i < count; ++i)
-             {
-                 BYTE c = data[offset + i];
-                 *p++ = (c >= 32 && c <= 126) ? (char)c : '.';
-             }
-             *p = '\0';
+ //            // ASCII 区
+ //            for (size_t i = 0; i < count; ++i)
+ //            {
+ //                BYTE c = data[offset + i];
+ //                *p++ = (c >= 32 && c <= 126) ? (char)c : '.';
+ //            }
+ //            *p = '\0';
 
-             ImGui::TextUnformatted(line);
-         }
-     }
+ //            ImGui::TextUnformatted(line);
+ //        }
+ //    }
 
-     ImGui::EndChild();
- }
+ //    ImGui::EndChild();
+ //}
+
+static void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow)
+{
+    if (!data || size == 0)
+    {
+        ImGui::Text("Empty");
+        return;
+    }
+
+    std::string dump;
+    dump.reserve(size * 4);
+
+    const size_t rowCount = (size + bytesPerRow - 1) / bytesPerRow;
+
+    for (size_t row = 0; row < rowCount; ++row)
+    {
+        size_t offset = row * bytesPerRow;
+        size_t count = std::min(bytesPerRow, size - offset);
+
+        char line[256]{};
+        char* p = line;
+
+        p += sprintf_s(p, sizeof(line), "%08llX  ",
+            (unsigned long long)offset);
+
+        for (size_t i = 0; i < bytesPerRow; ++i)
+        {
+            if (i < count)
+                p += sprintf_s(
+                    p,
+                    sizeof(line) - (p - line),
+                    "%02X ",
+                    data[offset + i]
+                );
+            else
+                p += sprintf_s(
+                    p,
+                    sizeof(line) - (p - line),
+                    "   "
+                );
+        }
+
+        *p++ = ' ';
+
+        for (size_t i = 0; i < count; ++i)
+        {
+            BYTE c = data[offset + i];
+            *p++ = (c >= 32 && c <= 126) ? c : '.';
+        }
+
+        *p++ = '\n';
+        *p = '\0';
+
+        dump += line;
+    }
+
+    ImGui::BeginChild(
+        "HexDump",
+        ImVec2(0, 0),
+        false,
+        ImGuiWindowFlags_HorizontalScrollbar
+    );
+
+    // ⭐ 切换到等宽字体
+    ImGui::PushFont(g_HexFont);
+
+    ImGui::InputTextMultiline(
+        "##HexDumpText",
+        dump.data(),
+        dump.size() + 1,
+        ImVec2(-FLT_MIN, -FLT_MIN),
+        ImGuiInputTextFlags_ReadOnly
+    );
+
+    ImGui::PopFont();
+
+    ImGui::EndChild();
+}

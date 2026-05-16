@@ -1,6 +1,7 @@
 #pragma once
 #include "imgui.h"
 #include "App.h"
+#define NOMINMAX
 #include <Windows.h>
 #include <commdlg.h>
 #include "PEFile.h"
@@ -19,7 +20,7 @@ enum ViewType
 	View_BaseRelocale,
 };
 
-
+extern ImFont* g_HexFont;
 struct SelectedResData
 {
 	DWORD resDataEntryRva = 0;
