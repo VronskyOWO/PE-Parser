@@ -215,6 +215,10 @@ std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
 std::vector<ExportData> PECore::GetExportData()
 {
 	std::vector<ExportData> data{};
+	if (currentFile.exportDir->VirtualAddress == 0 && currentFile.exportDir->Size == 0)
+	{
+		return data;
+	}
 	PIMAGE_EXPORT_DIRECTORY pExportDir = (PIMAGE_EXPORT_DIRECTORY)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(currentFile.exportDir->VirtualAddress));
 	PWORD AddressOfNameOrdinals = (PWORD)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(pExportDir->AddressOfNameOrdinals));
 	PDWORD AddressOfNames = (PDWORD)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(pExportDir->AddressOfNames));
@@ -255,6 +259,10 @@ std::vector<ExportData> PECore::GetExportData()
 std::vector<ImportData> PECore::GetImportData()
 {
 	std::vector<ImportData> importDatas{};
+	if (currentFile.importDir->VirtualAddress == 0 && currentFile.importDir->Size == 0)
+	{
+		return importDatas;
+	}
 	PIMAGE_IMPORT_DESCRIPTOR pImportDescriptor= (PIMAGE_IMPORT_DESCRIPTOR)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(currentFile.importDir->VirtualAddress));
 
 	while (!RtlIsZeroMemory(pImportDescriptor, sizeof(IMAGE_IMPORT_DESCRIPTOR)))
@@ -564,7 +572,7 @@ ResourceNode PECore::GetResourcesData()
 
 	ResourceNode result;
 
-	if (!currentFile.resourceDir->VirtualAddress)
+	if (currentFile.resourceDir->VirtualAddress==0 && currentFile.resourceDir->Size==0)
 		return result;
 
 	DWORD baseRva = currentFile.resourceDir->VirtualAddress;
