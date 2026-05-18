@@ -50,8 +50,12 @@ struct DllInfo
 };
 struct FuncInfo
 {
+	bool importByOrdinal{};
+
 	std::string ordinal{};
-	std::string funcName{};
+	std::string hint{};
+
+	std::string funcName;
 };
 struct ImportData
 {

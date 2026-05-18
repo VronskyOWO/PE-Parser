@@ -403,8 +403,46 @@ void App::DrawImportView()
     ImGui::Separator();
     ImGui::Text("Imported Functions");
 
-    // ========== 下表  ========== 
-    ImGui::BeginChild("Import bottom window", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
+    //// ========== 下表  ========== 
+    //ImGui::BeginChild("Import bottom window", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+    //ImGuiTableFlags bottomFlags =
+    //    ImGuiTableFlags_Borders |
+    //    ImGuiTableFlags_Resizable |
+    //    ImGuiTableFlags_ScrollY |
+    //    ImGuiTableFlags_RowBg;
+
+    //if (selectedImportIndex!=-1 && ImGui::BeginTable("ImportFunctions", 2,
+    //    bottomFlags))
+    //{
+    //    ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
+    //    ImGui::TableSetupColumn(u8"Ordinal(序号)", ImGuiTableColumnFlags_WidthFixed, 150);
+    //    ImGui::TableSetupColumn(u8"Function Name", ImGuiTableColumnFlags_WidthStretch);
+    //    ImGui::TableHeadersRow();
+
+    //    for (size_t i = 0; i < importDatas[selectedImportIndex].funcsInfo.size(); i++)
+    //    {
+    //        ImGui::TableNextRow();
+    //        // 第一列 selectable
+    //        ImGui::TableSetColumnIndex(0);
+    //        ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].ordinal.c_str());
+    //        ImGui::TableSetColumnIndex(1);
+    //        ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].funcName.c_str());
+
+    //    }
+
+    //    ImGui::EndTable();
+    //}
+    //ImGui::EndChild();//====== 下表结束 ======
+
+
+    // ========== 下表  ==========
+    ImGui::BeginChild(
+        "Import bottom window",
+        ImVec2(0, bottomH),
+        true,
+        ImGuiWindowFlags_HorizontalScrollbar
+    );
 
     ImGuiTableFlags bottomFlags =
         ImGuiTableFlags_Borders |
@@ -412,30 +450,72 @@ void App::DrawImportView()
         ImGuiTableFlags_ScrollY |
         ImGuiTableFlags_RowBg;
 
-    if (selectedImportIndex!=-1 && ImGui::BeginTable("ImportFunctions", 2,
-        bottomFlags))
+    if (selectedImportIndex != -1 &&
+        ImGui::BeginTable("ImportFunctions", 3, bottomFlags))
     {
-        ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
-        ImGui::TableSetupColumn(u8"Ordinal(序号)", ImGuiTableColumnFlags_WidthFixed, 150);
-        ImGui::TableSetupColumn(u8"Function Name", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupScrollFreeze(0, 1);
+
+        ImGui::TableSetupColumn(
+            u8"Hint(给loader在导出表查找时的建议性索引)",
+            ImGuiTableColumnFlags_WidthFixed,
+            120
+        );
+
+        ImGui::TableSetupColumn(
+            u8"Ordinal(对应导出编号)",
+            ImGuiTableColumnFlags_WidthFixed,
+            120
+        );
+
+        ImGui::TableSetupColumn(
+            u8"Name",
+            ImGuiTableColumnFlags_WidthStretch
+        );
+
         ImGui::TableHeadersRow();
 
-        for (size_t i = 0; i < importDatas[selectedImportIndex].funcsInfo.size(); i++)
-        {
-            ImGui::TableNextRow();
-            // 第一列 selectable
-            ImGui::TableSetColumnIndex(0);
-            ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].ordinal.c_str());
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].funcName.c_str());
+        auto& funcs =
+            importDatas[selectedImportIndex].funcsInfo;
 
+        for (size_t i = 0; i < funcs.size(); i++)
+        {
+            auto& func = funcs[i];
+
+            ImGui::TableNextRow();
+
+            //
+            // Hint
+            //
+            ImGui::TableSetColumnIndex(0);
+
+            if (!func.importByOrdinal)
+                ImGui::Text("%s", func.hint.c_str());
+            else
+                ImGui::TextUnformatted("");
+
+            //
+            // Ordinal
+            //
+            ImGui::TableSetColumnIndex(1);
+
+            if (func.importByOrdinal)
+                ImGui::Text("%s", func.ordinal.c_str());
+            else
+                ImGui::TextUnformatted("");
+
+            //
+            // Name
+            //
+            ImGui::TableSetColumnIndex(2);
+
+            ImGui::Text("%s", func.funcName.c_str());
         }
 
         ImGui::EndTable();
     }
-    ImGui::EndChild();//====== 下表结束 ======
 
-
+    ImGui::EndChild();
+    //====== 下表结束 ======
     ImGui::EndChild();
 }
 DWORD App::RvaToFoa(DWORD rva)

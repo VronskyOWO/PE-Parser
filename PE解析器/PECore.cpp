@@ -288,21 +288,21 @@ std::vector<ImportData> PECore::GetImportData()
 				
 				if (IMAGE_SNAP_BY_ORDINAL64(pThunk->u1.Ordinal))
 				{
-					//仅序号导出
+					//按序号导入
 					WORD ordinal = IMAGE_ORDINAL64(pThunk->u1.Ordinal);
-
-					funcInfo.funcName = std::string(u8"仅序号导出");
+					funcInfo.importByOrdinal = true;
+					funcInfo.funcName = std::string(u8"按序号导入");
 					funcInfo.ordinal = ToHex(ordinal, 4);
 				}
 				else
 				{
-					//有名称导出
+					//按名称导入
 					PIMAGE_IMPORT_BY_NAME pImportByName =
 						(PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView +
 							RvaToFoa(pThunk->u1.AddressOfData));
-
+					funcInfo.importByOrdinal = false;
 					funcInfo.funcName = std::string(pImportByName->Name);
-					funcInfo.ordinal = ToHex(pImportByName->Hint, 4);
+					funcInfo.hint = ToHex(pImportByName->Hint, 4);
 				}
 				funcsInfo.push_back(funcInfo);
 				pThunk++;
@@ -318,8 +318,8 @@ std::vector<ImportData> PECore::GetImportData()
 				if (IMAGE_SNAP_BY_ORDINAL32(pThunk->u1.Ordinal))
 				{
 					WORD ordinal = IMAGE_ORDINAL32(pThunk->u1.Ordinal);
-
-					funcInfo.funcName = std::string(u8"仅序号导出");
+					funcInfo.importByOrdinal = true;
+					funcInfo.funcName = std::string(u8"按序号导入");
 					funcInfo.ordinal = ToHex(ordinal, 4);
 				}
 				else
@@ -327,9 +327,9 @@ std::vector<ImportData> PECore::GetImportData()
 					PIMAGE_IMPORT_BY_NAME pImportByName =
 						(PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView +
 							RvaToFoa(pThunk->u1.AddressOfData));
-
+					funcInfo.importByOrdinal = false;
 					funcInfo.funcName = std::string(pImportByName->Name);
-					funcInfo.ordinal = ToHex(pImportByName->Hint, 4);
+					funcInfo.hint = ToHex(pImportByName->Hint, 4);
 				}
 				funcsInfo.push_back(funcInfo);
 				pThunk++;
@@ -532,7 +532,12 @@ std::vector<std::vector<BaseData>> PECore::GetSectionsTableData()
 }
 std::vector<BaseRelocaleEntry> PECore::GetBaseRelocaleData()
 {
+	
 	std::vector<BaseRelocaleEntry> result{};
+	if (currentFile.relocaleDir->VirtualAddress == 0 && currentFile.relocaleDir->Size==0)
+	{
+		return result;
+	}
 	PIMAGE_BASE_RELOCATION pBaseRelocation = (PIMAGE_BASE_RELOCATION)((PCHAR)pCurrentAddrOfFileView + RvaToFoa(currentFile.relocaleDir->VirtualAddress));
 
 	while (pBaseRelocation->VirtualAddress != 0)
