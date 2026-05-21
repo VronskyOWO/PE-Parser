@@ -20,6 +20,8 @@ public:
 	std::vector<std::vector<BaseData>> GetSectionsTableData();
 	std::vector<BaseRelocaleEntry> GetBaseRelocaleData();
 	ResourceNode GetResourcesData();
+	std::vector<BoundImportDataBlock> GetBoundImportData();
+
 	void ParseResourceNode(
 		PIMAGE_RESOURCE_DIRECTORY dir,
 		DWORD baseRva,

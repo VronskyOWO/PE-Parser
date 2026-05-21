@@ -18,6 +18,7 @@ enum ViewType
 	View_Export,
 	View_Resource,
 	View_BaseRelocale,
+	View_BoundImport,
 };
 
 extern ImFont* g_HexFont;
@@ -46,6 +47,7 @@ private:
 	NtSignatureData ntSignatureData{};
 	std::vector<DosHeaderData> dosHeaderData{};
 	std::vector<BaseRelocaleEntry> baseRelocaleData{};
+	std::vector<BoundImportDataBlock> boundImportData{};
 	ResourceNode resourceData{};
 	ResourceNode* pSelectedNode{};
 	SelectedResData selectedResData{};
@@ -65,6 +67,7 @@ private:
 	void DrawResourceNode(ResourceNode& node);
 	//void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
 	void DrawBaseRelocaleView();
+	void DrawBoundImport();
 	void DrawMenuBar();
 	void OpenFile();     // ÉùÃ÷
 	void CloseFile();    // ÉùÃ÷

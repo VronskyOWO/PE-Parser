@@ -84,10 +84,12 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		currentFile.pNtHeader64 = PIMAGE_NT_HEADERS64((PCHAR)currentFile.pDosHeader + currentFile.pDosHeader->e_lfanew);
 		currentFile.sectionHeaders = PIMAGE_SECTION_HEADER((PCHAR)&currentFile.pNtHeader64->OptionalHeader + currentFile.pNtHeader64->FileHeader.SizeOfOptionalHeader);
 		currentFile.sectionCount = currentFile.pNtHeader64->FileHeader.NumberOfSections;
-		currentFile.exportDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[0];
-		currentFile.importDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[1];
-		currentFile.resourceDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[2];
-		currentFile.relocaleDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[5];
+		currentFile.exportDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+		currentFile.importDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+		currentFile.resourceDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
+		currentFile.relocaleDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+		currentFile.boundImportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
+
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
 	{
@@ -96,10 +98,12 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		currentFile.pNtHeader32 = PIMAGE_NT_HEADERS32((PCHAR)currentFile.pDosHeader + currentFile.pDosHeader->e_lfanew);
 		currentFile.sectionHeaders = PIMAGE_SECTION_HEADER((PCHAR)&currentFile.pNtHeader32->OptionalHeader + currentFile.pNtHeader32->FileHeader.SizeOfOptionalHeader);
 		currentFile.sectionCount = currentFile.pNtHeader32->FileHeader.NumberOfSections;
-		currentFile.exportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[0];
-		currentFile.importDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[1];
-		currentFile.resourceDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[2];
-		currentFile.relocaleDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[5];
+		currentFile.exportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXPORT];
+		currentFile.importDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
+		currentFile.resourceDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
+		currentFile.relocaleDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
+		currentFile.boundImportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
+
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_ROM_OPTIONAL_HDR_MAGIC)
 	{
@@ -587,6 +591,40 @@ ResourceNode PECore::GetResourcesData()
 
 }
 
+std::vector<BoundImportDataBlock> PECore::GetBoundImportData()
+{
+	std::vector<BoundImportDataBlock> biDatas;
+	if (currentFile.boundImportDir->VirtualAddress == 0 && currentFile.boundImportDir->Size == 0)
+		return biDatas;
+
+	PIMAGE_BOUND_IMPORT_DESCRIPTOR pBIDesrcriptor = PIMAGE_BOUND_IMPORT_DESCRIPTOR((PBYTE)pCurrentAddrOfFileView + RvaToFoa(currentFile.boundImportDir->VirtualAddress));
+	PIMAGE_BOUND_IMPORT_DESCRIPTOR pBIDesrcriptorBase = pBIDesrcriptor;
+	while (pBIDesrcriptor->OffsetModuleName)
+	{
+		BoundImportDataBlock bidb{};
+		bidb.biDescriptor.biDescriptor.NumberOfModuleForwarderRefs = pBIDesrcriptor->NumberOfModuleForwarderRefs;
+		bidb.biDescriptor.biDescriptor.OffsetModuleName = pBIDesrcriptor->OffsetModuleName;
+		bidb.biDescriptor.biDescriptor.TimeDateStamp = pBIDesrcriptor->TimeDateStamp;
+		bidb.biDescriptor.dllName = std::string{ (PCHAR)pBIDesrcriptorBase + pBIDesrcriptor->OffsetModuleName };
+		PIMAGE_BOUND_FORWARDER_REF bfrBase = (PIMAGE_BOUND_FORWARDER_REF)(pBIDesrcriptor + 1);
+		for (size_t i = 0; i < pBIDesrcriptor->NumberOfModuleForwarderRefs; i++)
+		{
+			DEF_IMAGE_BOUND_FORWARDER_REF dbfr{};
+			dbfr.dllName= std::string{ (PCHAR)pBIDesrcriptorBase + bfrBase->OffsetModuleName };
+			dbfr.ref.OffsetModuleName = bfrBase->OffsetModuleName;
+			dbfr.ref.Reserved = bfrBase->Reserved;
+			dbfr.ref.TimeDateStamp = bfrBase->TimeDateStamp;
+			
+			bidb.refs.push_back(dbfr);
+			bfrBase++;
+		}
+		
+		biDatas.push_back(bidb);
+		pBIDesrcriptor = PIMAGE_BOUND_IMPORT_DESCRIPTOR((PBYTE)pBIDesrcriptor + pBIDesrcriptor->NumberOfModuleForwarderRefs * sizeof(IMAGE_BOUND_FORWARDER_REF));
+	}
+	return biDatas;
+}
+
 void PECore::ParseResourceNode(
 	PIMAGE_RESOURCE_DIRECTORY dir,
 	DWORD baseRva,
@@ -706,6 +744,7 @@ void PECore::CloseFile()
 	currentFile.exportDir = NULL;
 	currentFile.resourceDir = NULL;
 	currentFile.relocaleDir = NULL;
+	currentFile.boundImportDir = NULL;
 
 	if (pCurrentAddrOfFileView)
 	{

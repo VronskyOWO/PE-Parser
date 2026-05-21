@@ -79,6 +79,9 @@ void App::DrawPEView()
     case View_BaseRelocale:
         DrawBaseRelocaleView();
         break;
+    case View_BoundImport:
+        DrawBoundImport();
+        break;
     default:
         ImGui::Text(u8"等待加载文件...");
         break;
@@ -328,6 +331,70 @@ void App::DrawBaseRelocaleView()
     ImGui::EndChild();
 }
 
+void App::DrawBoundImport()
+{
+
+    if (boundImportData.empty())
+    {
+        ImGui::Text("No Bound Import");
+        return;
+    }
+    ImGui::BeginChild("Bound Import View");
+    ImGui::Text("Bound Import Imformation");
+    ImGui::Separator();
+   
+    
+    ImGuiTableFlags Flags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY;
+    if (ImGui::BeginTable("Bound Import Table",5, Flags))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1); // 冻结表头
+        ImGui::TableSetupColumn(u8"", ImGuiTableColumnFlags_WidthFixed, 80);
+        ImGui::TableSetupColumn(u8"DllName", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"TimeDateStamp", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"OffsetModuleName", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"NumberOfModuleForwarderRefs", ImGuiTableColumnFlags_WidthStretch);
+
+        
+        for (size_t i = 0; i < boundImportData.size(); i++)
+        {
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("IMAGE_BOUND_IMPORT_DESCRIPTOR[%d]", i);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text(boundImportData[i].biDescriptor.dllName.c_str());
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("0x%08x", boundImportData[i].biDescriptor.biDescriptor.TimeDateStamp);
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("0x%04x", boundImportData[i].biDescriptor.biDescriptor.OffsetModuleName);
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("0x%04x", boundImportData[i].biDescriptor.biDescriptor.NumberOfModuleForwarderRefs);
+            for (size_t i = 0; i < boundImportData[i].refs.size(); i++)
+            {
+
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("IMAGE_BOUND_FORWARDER_REF[%d]", i);
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Text(boundImportData[i].refs[i].dllName.c_str());
+                ImGui::TableSetColumnIndex(2);
+                ImGui::Text("0x%08x", boundImportData[i].refs[i].ref.TimeDateStamp);
+                ImGui::TableSetColumnIndex(3);
+                ImGui::Text("0x%04x", boundImportData[i].refs[i].ref.OffsetModuleName);
+                ImGui::TableSetColumnIndex(4);
+                ImGui::Text("0x%04x(Reserved)", boundImportData[i].refs[i].ref.Reserved);
+            }
+        }
+
+        ImGui::EndTable();
+    }
+   
+
+    ImGui::EndChild();
+}
+
 void App::DrawImportView()
 {
     ImGui::BeginChild("Import View");
@@ -402,39 +469,6 @@ void App::DrawImportView()
     
     ImGui::Separator();
     ImGui::Text("Imported Functions");
-
-    //// ========== 下表  ========== 
-    //ImGui::BeginChild("Import bottom window", ImVec2(0, bottomH), true, ImGuiWindowFlags_HorizontalScrollbar);
-
-    //ImGuiTableFlags bottomFlags =
-    //    ImGuiTableFlags_Borders |
-    //    ImGuiTableFlags_Resizable |
-    //    ImGuiTableFlags_ScrollY |
-    //    ImGuiTableFlags_RowBg;
-
-    //if (selectedImportIndex!=-1 && ImGui::BeginTable("ImportFunctions", 2,
-    //    bottomFlags))
-    //{
-    //    ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
-    //    ImGui::TableSetupColumn(u8"Ordinal(序号)", ImGuiTableColumnFlags_WidthFixed, 150);
-    //    ImGui::TableSetupColumn(u8"Function Name", ImGuiTableColumnFlags_WidthStretch);
-    //    ImGui::TableHeadersRow();
-
-    //    for (size_t i = 0; i < importDatas[selectedImportIndex].funcsInfo.size(); i++)
-    //    {
-    //        ImGui::TableNextRow();
-    //        // 第一列 selectable
-    //        ImGui::TableSetColumnIndex(0);
-    //        ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].ordinal.c_str());
-    //        ImGui::TableSetColumnIndex(1);
-    //        ImGui::Text("%s", importDatas[selectedImportIndex].funcsInfo[i].funcName.c_str());
-
-    //    }
-
-    //    ImGui::EndTable();
-    //}
-    //ImGui::EndChild();//====== 下表结束 ======
-
 
     // ========== 下表  ==========
     ImGui::BeginChild(
@@ -825,6 +859,15 @@ void App::DrawPETree()
         ImGui::TreePop();
     }
 
+    if (ImGui::TreeNodeEx("BoundImport", ImGuiTreeNodeFlags_Leaf))
+    {
+        if (ImGui::IsItemClicked())
+        {
+            currentView = View_BoundImport;
+        }
+        ImGui::TreePop();
+    }
+
     ImGui::EndChild();
 }
 
@@ -940,7 +983,7 @@ void App::OpenFile()
     ntFileHeaderData = peCore.GetNtFileHeaderData();
     pSelectedNode = nullptr;
     baseRelocaleData = peCore.GetBaseRelocaleData();
-    
+    boundImportData = peCore.GetBoundImportData();
 }
 
 void App::CloseFile()
@@ -1087,63 +1130,6 @@ App::~App()
 }
 
 
-
- //static void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow)
- //{
- //    if (!data || size == 0)
- //    {
- //        ImGui::Text("Empty");
- //        return;
- //    }
-
- //    ImGui::BeginChild("HexDump", ImVec2(0, 0), false, ImGuiWindowFlags_HorizontalScrollbar);
-
- //    // 预估每行字符数：偏移(8) + 空格 + hex(3*16) + 空格 + ascii(16) + 结束
- //    // 用 ImGuiListClipper 避免大数据卡顿
- //    const size_t rowCount = (size + bytesPerRow - 1) / bytesPerRow;
-
- //    ImGuiListClipper clipper;
- //    clipper.Begin((int)rowCount);
- //    while (clipper.Step())
- //    {
- //        for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row)
- //        {
- //            size_t offset = (size_t)row * bytesPerRow;
- //            size_t count = bytesPerRow;
- //            if (offset + count > size) count = size - offset;
-
- //            char line[256]{};
- //            char* p = line;
-
- //            // 偏移
- //            p += sprintf_s(p, sizeof(line) - (p - line), "%08llX  ", (unsigned long long)offset);
-
- //            // Hex 区
- //            for (size_t i = 0; i < bytesPerRow; ++i)
- //            {
- //                if (i < count)
- //                    p += sprintf_s(p, sizeof(line) - (p - line), "%02X ", data[offset + i]);
- //                else
- //                    p += sprintf_s(p, sizeof(line) - (p - line), "   ");
- //            }
-
- //            // 分隔
- //            p += sprintf_s(p, sizeof(line) - (p - line), " ");
-
- //            // ASCII 区
- //            for (size_t i = 0; i < count; ++i)
- //            {
- //                BYTE c = data[offset + i];
- //                *p++ = (c >= 32 && c <= 126) ? (char)c : '.';
- //            }
- //            *p = '\0';
-
- //            ImGui::TextUnformatted(line);
- //        }
- //    }
-
- //    ImGui::EndChild();
- //}
 
 static void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow)
 {

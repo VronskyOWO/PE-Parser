@@ -97,3 +97,20 @@ struct BaseRelocaleEntry
 	std::vector<WORD> blockEntrys;
 };
 
+struct DEF_IMAGE_BOUND_IMPORT_DESCRIPTOR
+{
+	IMAGE_BOUND_IMPORT_DESCRIPTOR biDescriptor{};
+	std::string dllName;
+};
+
+struct DEF_IMAGE_BOUND_FORWARDER_REF
+{
+	IMAGE_BOUND_FORWARDER_REF ref{};
+	std::string dllName;
+};
+
+struct BoundImportDataBlock
+{
+	DEF_IMAGE_BOUND_IMPORT_DESCRIPTOR biDescriptor{};
+	std::vector<DEF_IMAGE_BOUND_FORWARDER_REF> refs{};
+};
