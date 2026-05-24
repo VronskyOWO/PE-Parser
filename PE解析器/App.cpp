@@ -1,7 +1,109 @@
 ﻿#include "App.h"
+#include <vector>
+#include <d3d11.h>
+#include <functional>
+#include <algorithm>
 
 extern PECore peCore;
+// forward declarations for helper parsing functions
+static bool ParseIconRaw(const std::vector<BYTE>& iconRaw, int& outW, int& outH, std::vector<BYTE>& outRGBA);
+static bool TryParseFirstIconInGroup(const ResourceNode& root, const ResourceData& groupData, int& outW, int& outH, std::vector<BYTE>& outRGBA);
 void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow = 16);
+// forward declaration so UploadTexture_D3D11 can be used above its definition
+static ID3D11ShaderResourceView* UploadTexture_D3D11(const unsigned char* rgba, int w, int h, ID3D11Device* dev, ID3D11DeviceContext* ctx);
+static int GetTopLevelTypeId(const ResourceNode& root, const ResourceNode* target);
+static bool BuildIcoFromGroup(const ResourceNode& root, const ResourceData& groupData, std::vector<BYTE>& outIco);
+// 返回 HICON（调用者负责 DestroyIcon）; data 指向 ICO/ICONDIR 所在的内存，size 为长度
+static HICON CreateIconFromMemory(const BYTE* data, size_t size)
+{
+    // CreateIconFromResourceEx 需要 POINT to an image resource (icon image), not the group directory.
+    // For full .ico files the function can parse the ICO file header.
+    // Try CreateIconFromResourceEx first (expects resource-format), fall back if fails。
+    BOOL fIcon = TRUE;
+    HICON hIcon = CreateIconFromResourceEx(
+        (PBYTE)data,
+        (DWORD)size,
+        TRUE,
+        0x00030000, // version
+        0, 0,
+        LR_DEFAULTCOLOR
+    );
+    return hIcon;
+}
+
+// 把 HICON -> width,height 和 RGBA(8-bit) 像素（RGBA）
+static bool HICON_To_RGBA(HICON hIcon, int& outW, int& outH, std::vector<BYTE>& outRGBA)
+{
+    if (!hIcon) return false;
+
+    ICONINFO ii;
+    if (!GetIconInfo(hIcon, &ii)) return false;
+
+    BITMAP bmp;
+    HBITMAP hbmp = (HBITMAP)ii.hbmColor ? ii.hbmColor : ii.hbmMask;
+    if (!GetObject(hbmp, sizeof(bmp), &bmp)) {
+        if (ii.hbmColor) DeleteObject(ii.hbmColor);
+        if (ii.hbmMask) DeleteObject(ii.hbmMask);
+        return false;
+    }
+
+    int w = bmp.bmWidth;
+    int h = bmp.bmHeight;
+    // Some icon bitmaps have height == icon_height*2 (color + mask). Normalize if needed.
+    if (h % 2 == 0 && (h / 2) == w) {
+        // unlikely, but keep original if not matching; don't blindly halve.
+    }
+    outW = w; outH = h;
+    outRGBA.assign(w * h * 4, 0);
+
+    // create compatible DC and DIB section
+    BITMAPINFO bi{};
+    bi.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+    bi.bmiHeader.biWidth = w;
+    bi.bmiHeader.biHeight = -h; // top-down
+    bi.bmiHeader.biPlanes = 1;
+    bi.bmiHeader.biBitCount = 32;
+    bi.bmiHeader.biCompression = BI_RGB;
+
+    HDC hdc = GetDC(NULL);
+    void* pvBits = nullptr;
+    HBITMAP hDib = CreateDIBSection(hdc, &bi, DIB_RGB_COLORS, &pvBits, NULL, 0);
+    if (!hDib) { ReleaseDC(NULL, hdc); if (ii.hbmColor) DeleteObject(ii.hbmColor); if (ii.hbmMask) DeleteObject(ii.hbmMask); return false; }
+
+    HDC mem = CreateCompatibleDC(hdc);
+    HBITMAP old = (HBITMAP)SelectObject(mem, hDib);
+
+    // draw icon to DIB
+    DrawIconEx(mem, 0, 0, hIcon, w, h, 0, NULL, DI_NORMAL);
+
+    // copy pixels (BGRA in memory)
+    const BYTE* src = (const BYTE*)pvBits;
+    // convert BGRA -> RGBA
+    for (int y = 0; y < h; ++y) {
+        for (int x = 0; x < w; ++x) {
+            int si = (y * w + x) * 4;
+            BYTE b = src[si + 0];
+            BYTE g = src[si + 1];
+            BYTE r = src[si + 2];
+            BYTE a = src[si + 3];
+            int di = (y * w + x) * 4;
+            outRGBA[di + 0] = r;
+            outRGBA[di + 1] = g;
+            outRGBA[di + 2] = b;
+            outRGBA[di + 3] = a;
+        }
+    }
+
+    // cleanup
+    SelectObject(mem, old);
+    DeleteObject(hDib);
+    DeleteDC(mem);
+    ReleaseDC(NULL, hdc);
+    if (ii.hbmColor) DeleteObject(ii.hbmColor);
+    if (ii.hbmMask) DeleteObject(ii.hbmMask);
+
+    return true;
+}
 
 void App::update()
 {
@@ -122,13 +224,195 @@ void App::DrawResourceView()
     // =========================
     ImGui::BeginChild("ResourceData", ImVec2(0, 0), true);
 
+    // 成员缓存
+    std::vector<BYTE> icoBuffer;
+
     if (pSelectedNode && pSelectedNode->level == 3 && pSelectedNode->data.has_value())
     {
         auto& data = pSelectedNode->data.value();
 
+        // If selected node changed since last frame, clear current icon texture so it will be re-decoded
+        if (prevSelectedNode != pSelectedNode)
+        {
+            if (iconTexture)
+            {
+                auto old = reinterpret_cast<ID3D11ShaderResourceView*>(iconTexture);
+                if (old) old->Release();
+                iconTexture = (ImTextureID)0;
+                iconTexW = 0; iconTexH = 0;
+            }
+            prevSelectedNode = pSelectedNode;
+            selectedResData.dataRva = data.dataRva;
+            selectedResData.dataSize = data.dataSize;
+            selectedResData.typeId = GetTopLevelTypeId(resourceData, pSelectedNode);
+        }
+
         ImGui::Text("DataRVA: 0x%X", data.dataRva);
         ImGui::Text("Size:    0x%X", data.dataSize);
         ImGui::Text("CodePage: 0x%X", data.codePage);
+
+        // 右侧显示区
+        ImGui::SameLine();
+        ImGui::BeginGroup(); // 把右侧作为一组
+
+        int topType = GetTopLevelTypeId(resourceData, pSelectedNode);
+
+        if (topType == 3) // RT_ICON
+        {
+            if (iconTexture)
+            {
+                // 已有纹理，直接显示 using persistent size members
+                ImGui::Image(iconTexture, ImVec2((float)iconTexW, (float)iconTexH));
+            }
+            else
+            {
+                // First try Windows API to create HICON from resource-format data
+                HICON hIcon = CreateIconFromMemory(data.rawData.data(), data.rawData.size());
+                int w = 0, h = 0;
+                std::vector<BYTE> rgba;
+                bool uploaded = false;
+
+                if (hIcon && HICON_To_RGBA(hIcon, w, h, rgba))
+                {
+                    // release old texture if any
+                    if (iconTexture)
+                    {
+                        auto old = reinterpret_cast<ID3D11ShaderResourceView*>(iconTexture);
+                        if (old) old->Release();
+                        iconTexture = (ImTextureID)0;
+                    }
+
+                    ID3D11ShaderResourceView* srv = UploadTexture_D3D11(rgba.data(), w, h, g_pd3dDevice, g_pd3dDeviceContext);
+                    if (srv)
+                    {
+                        iconTexture = (ImTextureID)srv;
+                        iconTexW = w; iconTexH = h; // store into members
+                        ImGui::Image(iconTexture, ImVec2((float)iconTexW, (float)iconTexH));
+                        uploaded = true;
+                    }
+                }
+                if (hIcon) { DestroyIcon(hIcon); hIcon = NULL; }
+
+                // Fallback: try parse RT_ICON raw data directly (BITMAPINFOHEADER + pixels)
+                if (!uploaded)
+                {
+                    int pw=0, ph=0;
+                    std::vector<BYTE> prgba;
+                    if (ParseIconRaw(data.rawData, pw, ph, prgba))
+                    {
+                        if (iconTexture)
+                        {
+                            auto old = reinterpret_cast<ID3D11ShaderResourceView*>(iconTexture);
+                            if (old) old->Release();
+                            iconTexture = (ImTextureID)0;
+                        }
+                        ID3D11ShaderResourceView* srv = UploadTexture_D3D11(prgba.data(), pw, ph, g_pd3dDevice, g_pd3dDeviceContext);
+                        if (srv)
+                        {
+                            iconTexture = (ImTextureID)srv;
+                            iconTexW = pw; iconTexH = ph;
+                            ImGui::Image(iconTexture, ImVec2((float)iconTexW, (float)iconTexH));
+                            uploaded = true;
+                        }
+                    }
+                }
+
+                if (!uploaded)
+                {
+                    ImGui::Text(u8"无法解码 ICON 资源");
+                }
+            }
+        }
+        else if (topType == 14) // RT_GROUP_ICON
+        {
+            bool uploaded = false;
+            // build ICO from group resource + RT_ICON entries in resourceData
+            if (BuildIcoFromGroup(resourceData, data, icoBuffer))
+            {
+                // same workflow: create HICON from ICO memory, convert, upload
+                HICON hIcon = CreateIconFromMemory(icoBuffer.data(), icoBuffer.size());
+                int w = 0, h = 0;
+                std::vector<BYTE> rgba;
+                if (hIcon && HICON_To_RGBA(hIcon, w, h, rgba))
+                {
+                    if (iconTexture)
+                    {
+                        auto old = reinterpret_cast<ID3D11ShaderResourceView*>(iconTexture);
+                        if (old) old->Release();
+                        iconTexture = (ImTextureID)0;
+                    }
+
+                    ID3D11ShaderResourceView* srv = UploadTexture_D3D11(rgba.data(), w, h, g_pd3dDevice, g_pd3dDeviceContext);
+                    if (srv)
+                    {
+                        iconTexture = (ImTextureID)srv;
+                        iconTexW = w; iconTexH = h; // store into members
+                        ImGui::Image(iconTexture, ImVec2((float)iconTexW, (float)iconTexH));
+                        uploaded = true;
+                    }
+                }
+                if (hIcon) { DestroyIcon(hIcon); hIcon = NULL; }
+
+                // If HICON path failed, try parsing first referenced RT_ICON raw and upload
+                if (!uploaded)
+                {
+                    int pw=0, ph=0;
+                    std::vector<BYTE> prgba;
+                    if (TryParseFirstIconInGroup(resourceData, data, pw, ph, prgba))
+                    {
+                        if (iconTexture)
+                        {
+                            auto old = reinterpret_cast<ID3D11ShaderResourceView*>(iconTexture);
+                            if (old) old->Release();
+                            iconTexture = (ImTextureID)0;
+                        }
+                        ID3D11ShaderResourceView* srv = UploadTexture_D3D11(prgba.data(), pw, ph, g_pd3dDevice, g_pd3dDeviceContext);
+                        if (srv)
+                        {
+                            iconTexture = (ImTextureID)srv;
+                            iconTexW = pw; iconTexH = ph;
+                            ImGui::Image(iconTexture, ImVec2((float)iconTexW, (float)iconTexH));
+                            uploaded = true;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // BuildIcoFromGroup failed; as fallback, try to parse first RT_ICON referenced by groupData
+                int pw=0, ph=0;
+                std::vector<BYTE> prgba;
+                if (TryParseFirstIconInGroup(resourceData, data, pw, ph, prgba))
+                {
+                    if (iconTexture)
+                    {
+                        auto old = reinterpret_cast<ID3D11ShaderResourceView*>(iconTexture);
+                        if (old) old->Release();
+                        iconTexture = (ImTextureID)0;
+                    }
+                    ID3D11ShaderResourceView* srv = UploadTexture_D3D11(prgba.data(), pw, ph, g_pd3dDevice, g_pd3dDeviceContext);
+                    if (srv)
+                    {
+                        iconTexture = (ImTextureID)srv;
+                        iconTexW = pw; iconTexH = ph;
+                        ImGui::Image(iconTexture, ImVec2((float)iconTexW, (float)iconTexH));
+                        uploaded = true;
+                    }
+                }
+                else
+                {
+                    ImGui::Text(u8"无法从 GROUP_ICON 构建 ICO 或解析底层 RT_ICON");
+                }
+            }
+
+            if (!uploaded && iconTexture==0)
+            {
+                // show placeholder
+                ImGui::Text(u8"无法显示图标");
+            }
+        }
+
+        ImGui::EndGroup();
 
         ImGui::Separator();
 
@@ -343,7 +627,6 @@ void App::DrawBoundImport()
     ImGui::Text("Bound Import Imformation");
     ImGui::Separator();
    
-    
     ImGuiTableFlags Flags =
         ImGuiTableFlags_Borders |
         ImGuiTableFlags_Resizable |
@@ -995,12 +1278,18 @@ void App::CloseFile()
     selectedImportIndex = -1;
     selectedRelocationIndex = -1;
 
-    
-    peCore.CloseFile();         
+    // 释放可能上传到 GPU 的图标纹理（D3D11 的 SRV）
+    if (iconTexture)
+    {
+        ID3D11ShaderResourceView* srv = (ID3D11ShaderResourceView*)(iconTexture);
+        if (srv) srv->Release();
+        iconTexture = 0;
+    }
+
+    peCore.CloseFile();
 
     currentView = View_None;
 }
-
 
 void App::SetDarkTheme()
 {
@@ -1020,6 +1309,9 @@ void App::SetDarkTheme()
     ImVec4* colors = style.Colors;
 
     colors[ImGuiCol_Text] = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    colors[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.13f, 1.00f);
+    colors[ImGuiCol_ChildBg] = ImVec4(0.13f, 0.13f, 0.14f, 1.00f);
+
     colors[ImGuiCol_WindowBg] = ImVec4(0.12f, 0.12f, 0.13f, 1.00f);
     colors[ImGuiCol_ChildBg] = ImVec4(0.13f, 0.13f, 0.14f, 1.00f);
 
@@ -1208,3 +1500,245 @@ static void DrawHexDump(const BYTE* data, size_t size, size_t bytesPerRow)
 
     ImGui::EndChild();
 }
+
+static ID3D11ShaderResourceView* UploadTexture_D3D11(const unsigned char* rgba, int w, int h, ID3D11Device* dev, ID3D11DeviceContext* ctx)
+{
+    D3D11_TEXTURE2D_DESC desc{};
+    desc.Width = w; desc.Height = h; desc.MipLevels = 1; desc.ArraySize = 1;
+    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM; desc.SampleDesc.Count = 1; desc.Usage = D3D11_USAGE_DEFAULT;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    D3D11_SUBRESOURCE_DATA sd{};
+    sd.pSysMem = rgba;
+    sd.SysMemPitch = w * 4;
+
+    ID3D11Texture2D* tex = nullptr;
+    if (FAILED(dev->CreateTexture2D(&desc, &sd, &tex))) return nullptr;
+
+    ID3D11ShaderResourceView* srv = nullptr;
+    dev->CreateShaderResourceView(tex, nullptr, &srv);
+    tex->Release();
+    return srv; // return as ImTextureID
+}
+
+// helper: 找到选中叶子节点对应的顶层资源类型 id（例如 3 = ICON, 14 = GROUP_ICON）
+// DFS（深度优先搜索）：查找目标节点对应的顶层资源类型 ID
+// @root: 资源树根节点
+// @target: 目标节点指针
+static int GetTopLevelTypeId(const ResourceNode& root, const ResourceNode* target)
+{
+    // DFS：当找到 target 的子树时，返回最上层的 type id（level==1）
+    int foundType = -1;
+    std::function<bool(const ResourceNode&, int)> dfs = [&](const ResourceNode& node, int currentType)->bool {
+        int nextType = currentType;
+        if (node.level == 1) nextType = node.id; // record type
+        if (&node == target) { foundType = nextType; return true; }
+        for (auto& c : node.children) {
+            if (dfs(c, nextType)) return true;
+        }
+        return false;
+        };
+    dfs(root, -1);
+    return foundType;
+}
+
+// helper: 在资源树中查找 RT_ICON（type==3）且 nameId==iconId 的 rawData（返回 true 且填充 outData）
+// 遍历资源树，查找指定 ID 的图标资源
+// @root: 资源树根节点
+// @iconId: 图标 ID
+// @outData: 输出的图标原始数据
+static bool FindIconRawById(const ResourceNode& root, WORD iconId, std::vector<BYTE>& outData)
+{
+    // root.children[level1] are types; find type==3
+    for (const auto& typeNode : root.children) {
+        if (typeNode.level == 1 && typeNode.id == 3) {
+            // typeNode.children are name nodes (level2)
+            for (const auto& nameNode : typeNode.children) {
+                if (!nameNode.isNamed && nameNode.id == iconId) {
+                    // pick first language child (level3) that has data
+                    for (const auto& langNode : nameNode.children) {
+                        if (langNode.data.has_value()) {
+                            outData = langNode.data.value().rawData;
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // fallback: search whole tree for a leaf whose id==iconId under type==3
+    std::function<bool(const ResourceNode&)> dfs = [&](const ResourceNode& node)->bool {
+        if (node.level == 2 && !node.isNamed && node.id == iconId) {
+            for (const auto& langNode : node.children) {
+                if (langNode.data.has_value()) {
+                    outData = langNode.data.value().rawData;
+                    return true;
+                }
+            }
+        }
+        for (auto& c : node.children) if (dfs(c)) return true;
+        return false;
+        };
+    return dfs(root);
+}
+
+// Build ICO file from GROUP_ICON raw bytes (groupData) and underlying RT_ICON entries in resource tree.
+// outIco will contain full ICO file bytes on success.
+// 从 GROUP_ICON 和相关的 RT_ICON 资源构建 ICO 文件
+// @root: 资源树根节点
+// @groupData: GROUP_ICON 原始数据
+// @outIco: 输出的 ICO 文件字节数据
+static bool BuildIcoFromGroup(const ResourceNode& root, const ResourceData& groupData, std::vector<BYTE>& outIco)
+{
+    const BYTE* p = groupData.rawData.data();
+    size_t sz = groupData.rawData.size();
+    if (sz < 6) return false;
+    // ICONDIR / GRPICONDIR header: WORD reserved, WORD type, WORD count
+    WORD reserved = *(const WORD*)(p + 0);
+    WORD type = *(const WORD*)(p + 2);
+    WORD count = *(const WORD*)(p + 4);
+    if (reserved != 0 || (type != 1 && type != 2) || count == 0) return false;
+    size_t expectedHeader = 6 + (size_t)count * 14; // GRPICONDIRENTRY is 14 bytes
+    if (sz < expectedHeader) return false;
+
+    // parse entries
+    struct GrpEntry { BYTE w; BYTE h; BYTE colorCount; BYTE reserved; WORD planes; WORD bitCount; DWORD bytesInRes; WORD nID; };
+    std::vector<GrpEntry> entries;
+    entries.reserve(count);
+    const BYTE* pe = p + 6;
+    for (int i = 0; i < count; ++i) {
+        if ((size_t)(pe - p) + 14 > sz) return false;
+        GrpEntry e;
+        e.w = pe[0];
+        e.h = pe[1];
+        e.colorCount = pe[2];
+        e.reserved = pe[3];
+        e.planes = *(const WORD*)(pe + 4);
+        e.bitCount = *(const WORD*)(pe + 6);
+        e.bytesInRes = *(const DWORD*)(pe + 8);
+        e.nID = *(const WORD*)(pe + 12);
+        entries.push_back(e);
+        pe += 14;
+    }
+
+    // Build ICO: ICONDIR + ICONDIRENTRY array + image data
+    outIco.clear();
+    // ICONDIR header
+    outIco.resize(6);
+    outIco[0] = 0; outIco[1] = 0;
+    outIco[2] = 1; outIco[3] = 0; // type = 1 for icons
+    outIco[4] = (BYTE)(count & 0xFF); outIco[5] = (BYTE)((count >> 8) & 0xFF);
+
+    // reserve space for ICONDIRENTRY (16 bytes each)
+    size_t entriesOffset = outIco.size();
+    outIco.resize(outIco.size() + count * 16);
+
+    // append image data, keep offsets
+    size_t imageDataOffset = outIco.size();
+    for (int i = 0; i < count; ++i) {
+        auto& ge = entries[i];
+        // find corresponding RT_ICON raw data by ge.nID
+        std::vector<BYTE> iconRaw;
+        if (!FindIconRawById(root, ge.nID, iconRaw)) {
+            return false; // missing underlying icon resource
+        }
+        // Some RT_ICON raw data sizes may not match bytesInRes; use actual size
+        DWORD bytesInRes = (DWORD)iconRaw.size();
+        // fill ICONDIRENTRY at outIco[entriesOffset + i*16]
+        BYTE* entryPtr = outIco.data() + entriesOffset + i * 16;
+        entryPtr[0] = ge.w;
+        entryPtr[1] = ge.h;
+        entryPtr[2] = ge.colorCount;
+        entryPtr[3] = ge.reserved;
+        *(WORD*)(entryPtr + 4) = ge.planes;
+        *(WORD*)(entryPtr + 6) = ge.bitCount;
+        *(DWORD*)(entryPtr + 8) = bytesInRes;
+        *(DWORD*)(entryPtr + 12) = (DWORD)imageDataOffset;
+
+        // append iconRaw bytes
+        outIco.insert(outIco.end(), iconRaw.begin(), iconRaw.end());
+        imageDataOffset += bytesInRes;
+    }
+
+    return true;
+}
+
+// Definitions for parsing helpers
+static bool ParseIconRaw(const std::vector<BYTE>& iconRaw, int& outW, int& outH, std::vector<BYTE>& outRGBA)
+{
+    if (iconRaw.size() < sizeof(BITMAPINFOHEADER)) return false;
+    const BITMAPINFOHEADER* bih = reinterpret_cast<const BITMAPINFOHEADER*>(iconRaw.data());
+    if (bih->biSize != sizeof(BITMAPINFOHEADER)) return false;
+    int w = bih->biWidth;
+    int h = bih->biHeight; // may be doubled (color+mask)
+    int bpp = bih->biBitCount;
+    if (w <= 0 || h == 0) return false;
+
+    int colorH = h;
+    if (h == w * 2 || (h % 2 == 0 && (h / 2) <= 1024))
+        colorH = h / 2;
+
+    const BYTE* p = iconRaw.data() + bih->biSize;
+    size_t remaining = iconRaw.size() - bih->biSize;
+
+    if (bpp == 32) {
+        size_t needed = (size_t)w * colorH * 4;
+        if (remaining < needed) return false;
+        outW = w; outH = colorH;
+        outRGBA.resize((size_t)w * colorH * 4);
+        const BYTE* src = p;
+        for (int y = 0; y < colorH; ++y) {
+            const BYTE* srcLine = src + (size_t)(colorH - 1 - y) * (w * 4);
+            BYTE* dstLine = outRGBA.data() + (size_t)y * (w * 4);
+            for (int x = 0; x < w; ++x) {
+                dstLine[x * 4 + 0] = srcLine[x * 4 + 2];
+                dstLine[x * 4 + 1] = srcLine[x * 4 + 1];
+                dstLine[x * 4 + 2] = srcLine[x * 4 + 0];
+                dstLine[x * 4 + 3] = srcLine[x * 4 + 3];
+            }
+        }
+        return true;
+    }
+    else if (bpp == 24) {
+        size_t stride = ((w * 3 + 3) / 4) * 4;
+        size_t needed = (size_t)stride * colorH;
+        if (remaining < needed) return false;
+        outW = w; outH = colorH;
+        outRGBA.resize((size_t)w * colorH * 4);
+        const BYTE* src = p;
+        for (int y = 0; y < colorH; ++y) {
+            const BYTE* srcLine = src + (size_t)(colorH - 1 - y) * stride;
+            BYTE* dstLine = outRGBA.data() + (size_t)y * (w * 4);
+            for (int x = 0; x < w; ++x) {
+                const BYTE* s = srcLine + x * 3;
+                dstLine[x * 4 + 0] = s[2];
+                dstLine[x * 4 + 1] = s[1];
+                dstLine[x * 4 + 2] = s[0];
+                dstLine[x * 4 + 3] = 255;
+            }
+        }
+        return true;
+    }
+
+    return false;
+}
+
+static bool TryParseFirstIconInGroup(const ResourceNode& root, const ResourceData& groupData, int& outW, int& outH, std::vector<BYTE>& outRGBA)
+{
+    const BYTE* p = groupData.rawData.data();
+    size_t sz = groupData.rawData.size();
+    if (sz < 6) return false;
+    WORD count = *(const WORD*)(p + 4);
+    const BYTE* pe = p + 6;
+    for (int i = 0; i < count; ++i) {
+        if ((size_t)(pe - p) + 14 > sz) break;
+        WORD nID = *(const WORD*)(pe + 12);
+        std::vector<BYTE> iconRaw;
+        if (FindIconRawById(root, nID, iconRaw)) {
+            if (ParseIconRaw(iconRaw, outW, outH, outRGBA)) return true;
+        }
+        pe += 14;
+    }
+    return false;
+}
+

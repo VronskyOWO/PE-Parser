@@ -1,11 +1,14 @@
 #pragma once
 #include "imgui.h"
-#include "App.h"
 #define NOMINMAX
 #include <Windows.h>
 #include <commdlg.h>
+#include <functional>   // Ϊ std::function
+#include <algorithm>    // Ϊ std::min
 #include "PEFile.h"
 #include "PECore.h"
+
+
 enum ViewType
 {
 	View_None,
@@ -30,6 +33,12 @@ struct SelectedResData
 	int typeId = -1;
 };
 
+// Forward declarations for D3D11 types to avoid requiring d3d11.h in this header
+struct ID3D11Device;
+struct ID3D11DeviceContext;
+
+extern ID3D11Device* g_pd3dDevice;
+extern ID3D11DeviceContext* g_pd3dDeviceContext;
 class App
 {
 public:
@@ -50,7 +59,11 @@ private:
 	std::vector<BoundImportDataBlock> boundImportData{};
 	ResourceNode resourceData{};
 	ResourceNode* pSelectedNode{};
+	ResourceNode* prevSelectedNode{}; // track previous selection to refresh icon
 	SelectedResData selectedResData{};
+	ImTextureID iconTexture{};
+	int iconTexW = 0; // persistent icon width
+	int iconTexH = 0; // persistent icon height
 	int currentResTypeId = -1;
 	int selectedImportIndex = -1;
 	int selectedRelocationIndex = -1;

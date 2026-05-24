@@ -88,7 +88,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		currentFile.importDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_IMPORT];
 		currentFile.resourceDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
 		currentFile.relocaleDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
-		currentFile.boundImportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
+		currentFile.boundImportDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
 
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
@@ -585,7 +585,7 @@ ResourceNode PECore::GetResourcesData()
 	auto root = (PIMAGE_RESOURCE_DIRECTORY)
 		((PBYTE)pCurrentAddrOfFileView + foa);
 
-	ParseResourceNode(root, baseRva, 0, result);
+	ParseResourceNode(root, baseRva, 0, result,-1);
 
 	return result;
 
@@ -629,7 +629,8 @@ void PECore::ParseResourceNode(
 	PIMAGE_RESOURCE_DIRECTORY dir,
 	DWORD baseRva,
 	int level,
-	ResourceNode& node
+	ResourceNode& node,
+	int typeId
 )
 {
 	auto entry = (PIMAGE_RESOURCE_DIRECTORY_ENTRY)(dir + 1);
@@ -667,6 +668,14 @@ void PECore::ParseResourceNode(
 		else
 		{
 			subNode.id = entry->Id;
+			if (subNode.level == 1)
+			{
+				subNode.typeId = entry->Id;
+			}
+			else
+			{
+				subNode.typeId = typeId;
+			}
 		}
 
 		// --- всд©б╪ ---
@@ -678,7 +687,7 @@ void PECore::ParseResourceNode(
 			auto subDir = (PIMAGE_RESOURCE_DIRECTORY)
 				((PBYTE)pCurrentAddrOfFileView + subFoa);
 
-			ParseResourceNode(subDir, baseRva, level + 1, subNode);
+			ParseResourceNode(subDir, baseRva, level + 1, subNode, subNode.typeId);
 		}
 		else
 		{
