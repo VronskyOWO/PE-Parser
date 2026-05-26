@@ -184,6 +184,9 @@ void App::DrawPEView()
     case View_BoundImport:
         DrawBoundImport();
         break;
+    case View_DelayImport:
+        DrawDelayLoadImportView();
+        break;
     default:
         ImGui::Text(u8"等待加载文件...");
         break;
@@ -680,6 +683,12 @@ void App::DrawBoundImport()
 
 void App::DrawImportView()
 {
+    if (importDatas.empty())
+    {
+        ImGui::Text("No Import data");
+        return;
+    }
+
     ImGui::BeginChild("Import View");
     ImGui::Text("Import Information");
     ImGui::Separator();
@@ -793,6 +802,180 @@ void App::DrawImportView()
 
         auto& funcs =
             importDatas[selectedImportIndex].funcsInfo;
+
+        for (size_t i = 0; i < funcs.size(); i++)
+        {
+            auto& func = funcs[i];
+
+            ImGui::TableNextRow();
+
+            //
+            // Hint
+            //
+            ImGui::TableSetColumnIndex(0);
+
+            if (!func.importByOrdinal)
+                ImGui::Text("%s", func.hint.c_str());
+            else
+                ImGui::TextUnformatted("");
+
+            //
+            // Ordinal
+            //
+            ImGui::TableSetColumnIndex(1);
+
+            if (func.importByOrdinal)
+                ImGui::Text("%s", func.ordinal.c_str());
+            else
+                ImGui::TextUnformatted("");
+
+            //
+            // Name
+            //
+            ImGui::TableSetColumnIndex(2);
+
+            ImGui::Text("%s", func.funcName.c_str());
+        }
+
+        ImGui::EndTable();
+    }
+
+    ImGui::EndChild();
+    //====== 下表结束 ======
+    ImGui::EndChild();
+}
+void App::DrawDelayLoadImportView()
+{
+    if (delayImportDatas.empty())
+    {
+        ImGui::Text("No delay load Import data");
+        return;
+    }
+
+    ImGui::BeginChild("Delay Load Import View");
+    ImGui::Text("Import Information");
+    ImGui::Separator();
+
+
+    // 计算可用高度
+    float availY = ImGui::GetContentRegionAvail().y;
+    float gap = ImGui::GetStyle().ItemSpacing.y;
+
+    // 预留中间标题区域高度（Separator + Text + Spacing）
+    float midH = 0.0f;
+    midH += ImGui::GetFrameHeightWithSpacing(); // 大致按一行文字+spacing算
+    midH += ImGui::GetStyle().SeparatorTextBorderSize; // 可忽略，但保守一点
+    midH += gap; // 额外间距
+
+    // 把中间区域扣掉，再分配给上下表格
+    float remainY = availY - midH;
+    if (remainY < 200.0f) remainY = availY; // 太小就别扣了，避免负数
+
+    float topH = remainY * 0.45f;
+    float bottomH = remainY - topH;
+    if (bottomH < 100.0f) bottomH = 100.0f;
+
+
+    // ========== 上表  ========== 
+    ImGui::BeginChild("Import top window", ImVec2(0, topH), true, ImGuiWindowFlags_HorizontalScrollbar);
+
+    ImGuiTableFlags topFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY;
+
+    if (ImGui::BeginTable("Import Table", 9, topFlags))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1);//冻结表头
+        ImGui::TableSetupColumn(u8"DLL Name", ImGuiTableColumnFlags_WidthFixed, 200.0f);
+        ImGui::TableSetupColumn(u8"Attributes", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"DllNameRVA", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"ModuleHandleRVA", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"ImportAddressTableRVA", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"ImportNameTableRVA", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"BoundImportAddressTableRVA", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"UnloadInformationTableRVA", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableSetupColumn(u8"TimeDateStamp", ImGuiTableColumnFlags_WidthStretch);
+        ImGui::TableHeadersRow();
+
+        for (size_t i = 0; i < delayImportDatas.size(); i++)
+        {
+            ImGui::TableNextRow();
+            // 第一列 selectable
+            ImGui::TableSetColumnIndex(0);
+            if (ImGui::Selectable(delayImportDatas[i].diDllInfo.dllName.c_str(), selectedDelayLoadImportIndex == i,
+                ImGuiSelectableFlags_SpanAllColumns))
+            {
+                selectedDelayLoadImportIndex = i;
+            }
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.Attributes);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.DllNameRVA);
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.ModuleHandleRVA);
+            ImGui::TableSetColumnIndex(4);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.ImportAddressTableRVA);
+            ImGui::TableSetColumnIndex(5);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.ImportNameTableRVA);
+            ImGui::TableSetColumnIndex(6);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.BoundImportAddressTableRVA);
+            ImGui::TableSetColumnIndex(7);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.UnloadInformationTableRVA);
+            ImGui::TableSetColumnIndex(8);
+            ImGui::Text("0x%08x", delayImportDatas[i].diDllInfo.delayLoadDesc.TimeDateStamp);
+        }
+
+        ImGui::EndTable();
+    }
+    ImGui::EndChild();// ========== 上表结束  ========== 
+
+
+
+
+    ImGui::Separator();
+    ImGui::Text("Delay Load Imported Functions");
+
+    // ========== 下表  ==========
+    ImGui::BeginChild(
+        "Import bottom window",
+        ImVec2(0, bottomH),
+        true,
+        ImGuiWindowFlags_HorizontalScrollbar
+    );
+
+    ImGuiTableFlags bottomFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_ScrollY |
+        ImGuiTableFlags_RowBg;
+
+    if (selectedDelayLoadImportIndex != -1 &&
+        ImGui::BeginTable("DelayLoadFunctions", 3, bottomFlags))
+    {
+        ImGui::TableSetupScrollFreeze(0, 1);
+
+        ImGui::TableSetupColumn(
+            u8"Hint(给loader在导出表查找时的建议性索引)",
+            ImGuiTableColumnFlags_WidthFixed,
+            120
+        );
+
+        ImGui::TableSetupColumn(
+            u8"Ordinal(对应导出编号)",
+            ImGuiTableColumnFlags_WidthFixed,
+            120
+        );
+
+        ImGui::TableSetupColumn(
+            u8"Name",
+            ImGuiTableColumnFlags_WidthStretch
+        );
+
+        ImGui::TableHeadersRow();
+
+        auto& funcs =
+            delayImportDatas[selectedDelayLoadImportIndex].funcsInfo;
 
         for (size_t i = 0; i < funcs.size(); i++)
         {
@@ -1151,6 +1334,15 @@ void App::DrawPETree()
         ImGui::TreePop();
     }
 
+    if (ImGui::TreeNodeEx("DelayImport", ImGuiTreeNodeFlags_Leaf))
+    {
+        if (ImGui::IsItemClicked())
+        {
+            currentView = View_DelayImport;
+        }
+        ImGui::TreePop();
+    }
+
     ImGui::EndChild();
 }
 
@@ -1267,6 +1459,7 @@ void App::OpenFile()
     pSelectedNode = nullptr;
     baseRelocaleData = peCore.GetBaseRelocaleData();
     boundImportData = peCore.GetBoundImportData();
+    delayImportDatas = peCore.GetDelayImportData();
 }
 
 void App::CloseFile()

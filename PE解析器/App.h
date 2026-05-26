@@ -22,6 +22,7 @@ enum ViewType
 	View_Resource,
 	View_BaseRelocale,
 	View_BoundImport,
+	View_DelayImport,
 };
 
 extern ImFont* g_HexFont;
@@ -48,6 +49,7 @@ public:
 	void SetDarkTheme();
 	const char* GetResTypeName(WORD id);
 private:
+	std::vector<DIData> delayImportDatas{};
 	std::vector<ImportData> importDatas{};
 	std::vector<ExportData> exportData{};
 	std::vector<std::vector<BaseData>> sectionHeadersData;
@@ -66,6 +68,7 @@ private:
 	int iconTexH = 0; // persistent icon height
 	int currentResTypeId = -1;
 	int selectedImportIndex = -1;
+	int selectedDelayLoadImportIndex = -1;
 	int selectedRelocationIndex = -1;
 	ViewType currentView= View_None;
 	PEFile* currentPE;
@@ -76,6 +79,7 @@ private:
 	void DrawSectionsView();
 	void DrawExportView();
 	void DrawImportView();
+	void DrawDelayLoadImportView();
 	void DrawResourceView();
 	void DrawResourceNode(ResourceNode& node);
 	//void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);

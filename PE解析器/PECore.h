@@ -21,6 +21,7 @@ public:
 	std::vector<BaseRelocaleEntry> GetBaseRelocaleData();
 	ResourceNode GetResourcesData();
 	std::vector<BoundImportDataBlock> GetBoundImportData();
+	std::vector<DIData> GetDelayImportData();
 
 	void ParseResourceNode(
 		PIMAGE_RESOURCE_DIRECTORY dir,
@@ -32,7 +33,7 @@ public:
 	const char* GetResTypeName(WORD id);
 	void CloseFile();
 	BOOLEAN GetOpenStatus();
-	DWORD RvaToFoa(DWORD rva);
+	ULONGLONG RvaToFoa(ULONGLONG rva);
 	PECore();
 	~PECore();
 };

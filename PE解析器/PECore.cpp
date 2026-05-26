@@ -89,7 +89,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		currentFile.resourceDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
 		currentFile.relocaleDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
 		currentFile.boundImportDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
-
+		currentFile.delayLoadImportDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT];
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
 	{
@@ -103,7 +103,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		currentFile.resourceDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_RESOURCE];
 		currentFile.relocaleDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
 		currentFile.boundImportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
-
+		currentFile.delayLoadImportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT];
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_ROM_OPTIONAL_HDR_MAGIC)
 	{
@@ -112,11 +112,11 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		logInfo = { L"暂不支持ROM映像" };
 		CloseFile();
 		return FALSE;
+		
 	}
 	
 	return TRUE;
 }
-
 
 std::vector<DosHeaderData> PECore::GetDosHeaderData()
 {
@@ -625,6 +625,141 @@ std::vector<BoundImportDataBlock> PECore::GetBoundImportData()
 	return biDatas;
 }
 
+std::vector<DIData> PECore::GetDelayImportData()
+{
+	std::vector<DIData> ret{};
+	if (currentFile.delayLoadImportDir->VirtualAddress == 0 && currentFile.delayLoadImportDir->Size == 0) return ret;
+
+
+	PIMAGE_DELAYLOAD_DESCRIPTOR delayLoadDesc= PIMAGE_DELAYLOAD_DESCRIPTOR((PCHAR)pCurrentAddrOfFileView + RvaToFoa(currentFile.delayLoadImportDir->VirtualAddress));
+	bool isRvaMode = true;
+	if (!(delayLoadDesc->Attributes.RvaBased & 1))
+	{
+		isRvaMode = false;
+	}
+	while (!RtlIsZeroMemory(delayLoadDesc,sizeof(IMAGE_DELAYLOAD_DESCRIPTOR)))
+	{
+		DIData diItem;
+		std::vector<FuncInfo> funcsInfo{};
+		DWORD dllNameRVA = 0;
+		if (isRvaMode)
+		{
+			dllNameRVA = delayLoadDesc->DllNameRVA;
+		}
+		else
+		{
+			if (currentFile.is64)
+			{
+				dllNameRVA = delayLoadDesc->DllNameRVA - currentFile.pNtHeader64->OptionalHeader.ImageBase;
+			}
+			else
+			{
+				dllNameRVA = delayLoadDesc->DllNameRVA - currentFile.pNtHeader32->OptionalHeader.ImageBase;
+
+			}
+		}
+		diItem.diDllInfo.dllName={ (PCHAR)pCurrentAddrOfFileView+RvaToFoa(dllNameRVA) };
+		diItem.diDllInfo.delayLoadDesc = *delayLoadDesc;
+
+		if (currentFile.is64)
+		{
+			ULONGLONG intRVA = 0;
+			if (!isRvaMode)
+			{
+				//va -> rva
+				intRVA = delayLoadDesc->ImportNameTableRVA - currentFile.pNtHeader64->OptionalHeader.ImageBase;
+			}
+			else
+			{
+				intRVA = delayLoadDesc->ImportNameTableRVA;
+			}
+			PIMAGE_THUNK_DATA64 pINT = PIMAGE_THUNK_DATA64((PCHAR)pCurrentAddrOfFileView + RvaToFoa(intRVA));
+			while (pINT->u1.AddressOfData)
+			{
+				FuncInfo funcInfo{};
+				if (IMAGE_SNAP_BY_ORDINAL64(pINT->u1.Ordinal))
+				{
+					//按序号导入
+					WORD ordinal = IMAGE_ORDINAL64(pINT->u1.Ordinal);
+					funcInfo.importByOrdinal = true;
+					funcInfo.funcName = std::string(u8"按序号导入");
+					funcInfo.ordinal = ToHex(ordinal, 4);
+				}
+				else
+				{
+					ULONGLONG addrRva = 0;
+					if (isRvaMode)
+					{
+						addrRva = pINT->u1.AddressOfData;
+					}
+					else
+					{
+						addrRva = pINT->u1.AddressOfData - currentFile.pNtHeader64->OptionalHeader.ImageBase;
+					}
+					//按名称导入
+					DWORD addrFoa = RvaToFoa(addrRva);
+					PIMAGE_IMPORT_BY_NAME pImportByName = (PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView + addrFoa);
+					funcInfo.importByOrdinal = false;
+					funcInfo.funcName = std::string(pImportByName->Name);
+					funcInfo.hint = ToHex(pImportByName->Hint, 4);
+				}
+				diItem.funcsInfo.push_back(funcInfo);
+				pINT++;
+			}
+		}
+		else
+		{
+			ULONGLONG intRVA = 0;
+			if (!isRvaMode)
+			{
+				//va -> rva
+				intRVA = delayLoadDesc->ImportNameTableRVA - currentFile.pNtHeader32->OptionalHeader.ImageBase;
+			}
+			else
+			{
+				intRVA = delayLoadDesc->ImportNameTableRVA;
+			}
+			PIMAGE_THUNK_DATA32 pINT = PIMAGE_THUNK_DATA32((PCHAR)pCurrentAddrOfFileView + RvaToFoa(intRVA));
+			while (pINT->u1.AddressOfData)
+			{
+				FuncInfo funcInfo{};
+				if (IMAGE_SNAP_BY_ORDINAL32(pINT->u1.Ordinal))
+				{
+					//按序号导入
+					WORD ordinal = IMAGE_ORDINAL32(pINT->u1.Ordinal);
+					funcInfo.importByOrdinal = true;
+					funcInfo.funcName = std::string(u8"按序号导入");
+					funcInfo.ordinal = ToHex(ordinal, 4);
+				}
+				else
+				{
+					ULONGLONG addrRva = 0;
+					if (isRvaMode)
+					{
+						addrRva = pINT->u1.AddressOfData;
+					}
+					else
+					{
+						addrRva = pINT->u1.AddressOfData - currentFile.pNtHeader32->OptionalHeader.ImageBase;
+					}
+					//按名称导入
+					DWORD addrFoa = RvaToFoa(addrRva);
+					PIMAGE_IMPORT_BY_NAME pImportByName = (PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView + addrFoa);
+					funcInfo.importByOrdinal = false;
+					funcInfo.funcName = std::string(pImportByName->Name);
+					funcInfo.hint = ToHex(pImportByName->Hint, 4);
+				}
+				diItem.funcsInfo.push_back(funcInfo);
+				pINT++;
+			}
+		}
+
+		ret.push_back(diItem);
+		delayLoadDesc++;
+	}
+	return ret;
+}
+
 void PECore::ParseResourceNode(
 	PIMAGE_RESOURCE_DIRECTORY dir,
 	DWORD baseRva,
@@ -794,10 +929,8 @@ const MachineType* PECore::GetMachineType(WORD machine)
 	return nullptr;
 }
 
-DWORD PECore::RvaToFoa(DWORD rva)
+ULONGLONG PECore::RvaToFoa(ULONGLONG rva)
 {
-	DWORD sizeOfHeaders;
-
 	// 在 headers 中
 	if (rva < currentFile.sectionHeaders[0].VirtualAddress)
 	{

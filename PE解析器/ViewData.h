@@ -62,7 +62,16 @@ struct ImportData
 	DllInfo dllInfo{};
 	std::vector<FuncInfo> funcsInfo{};
 };
-
+struct DIDllInfo
+{
+	std::string dllName{};
+	IMAGE_DELAYLOAD_DESCRIPTOR delayLoadDesc;
+};
+struct DIData
+{
+	DIDllInfo diDllInfo{};
+	std::vector<FuncInfo> funcsInfo{};
+};
 struct ResourceData
 {
 	DWORD dataRva{};
