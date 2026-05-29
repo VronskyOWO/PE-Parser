@@ -187,6 +187,9 @@ void App::DrawPEView()
     case View_DelayImport:
         DrawDelayLoadImportView();
         break;
+    case View_TLS:
+        DrawTlsView();
+        break;
     default:
         ImGui::Text(u8"等待加载文件...");
         break;
@@ -681,6 +684,243 @@ void App::DrawBoundImport()
     ImGui::EndChild();
 }
 
+void App::DrawTlsView()
+{
+    ImGui::BeginChild("TLS View");
+
+    ImGui::Text("TLS Directory");
+    ImGui::Separator();
+
+    // =========================================================
+    // 无 TLS
+    // =========================================================
+    if (tlsData.StartAddressOfRawData.empty())
+    {
+        ImGui::Text(u8"当前PE不存在TLS目录");
+        ImGui::EndChild();
+        return;
+    }
+
+    // =========================================================
+    // 高度划分
+    // =========================================================
+
+    float availY = ImGui::GetContentRegionAvail().y;
+
+    // 上：基本信息
+    float topH = availY * 0.35f;
+
+    // 中：Callbacks
+    float midH = availY * 0.25f;
+
+    // 下：RawData
+    float bottomH = availY - topH - midH;
+
+    // =========================================================
+    // 1. TLS 基本信息
+    // =========================================================
+
+    ImGui::BeginChild(
+        "TLS Basic Info",
+        ImVec2(0, topH),
+        true,
+        ImGuiWindowFlags_HorizontalScrollbar
+    );
+
+    ImGui::Text("TLS Information");
+    ImGui::Separator();
+
+    ImGuiTableFlags infoFlags =
+        ImGuiTableFlags_Borders |
+        ImGuiTableFlags_RowBg |
+        ImGuiTableFlags_Resizable |
+        ImGuiTableFlags_SizingStretchProp;
+
+    if (ImGui::BeginTable("TLSInfoTable", 2, infoFlags))
+    {
+        ImGui::TableSetupColumn(
+            "Field",
+            ImGuiTableColumnFlags_WidthFixed,
+            240.0f
+        );
+
+        ImGui::TableSetupColumn(
+            "Value",
+            ImGuiTableColumnFlags_WidthStretch
+        );
+
+        ImGui::TableHeadersRow();
+
+        auto DrawRow =
+            [](const char* field, const std::string& value)
+            {
+                ImGui::TableNextRow();
+
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%s", field);
+
+                ImGui::TableSetColumnIndex(1);
+
+                ImGui::PushFont(g_HexFont);
+                ImGui::Text("%s", value.c_str());
+                ImGui::PopFont();
+            };
+
+        DrawRow(
+            "StartAddressOfRawData",
+            tlsData.StartAddressOfRawData
+        );
+
+        DrawRow(
+            "EndAddressOfRawData",
+            tlsData.EndAddressOfRawData
+        );
+
+        DrawRow(
+            "AddressOfIndex",
+            tlsData.AddressOfIndex
+        );
+
+        DrawRow(
+            "AddressOfCallBacks",
+            tlsData.AddressOfCallBacks
+        );
+
+        DrawRow(
+            "SizeOfZeroFill",
+            tlsData.SizeOfZeroFill
+        );
+
+        DrawRow(
+            "Characteristics",
+            tlsData.Characteristics
+        );
+
+        DrawRow(
+            "RawData RVA",
+            tlsData.rawDataRva
+        );
+
+        DrawRow(
+            "RawData Size",
+            tlsData.rawDataSize
+        );
+
+        ImGui::EndTable();
+    }
+
+    ImGui::EndChild();
+
+    ImGui::Separator();
+
+    // =========================================================
+    // 2. TLS Callback
+    // =========================================================
+
+    ImGui::BeginChild(
+        "TLS Callback Window",
+        ImVec2(0, midH),
+        true,
+        ImGuiWindowFlags_HorizontalScrollbar
+    );
+
+    ImGui::Text("TLS Callbacks");
+    ImGui::Separator();
+
+    if (tlsData.callBackRvaArray.empty())
+    {
+        ImGui::Text(u8"无TLS回调");
+    }
+    else
+    {
+        ImGuiTableFlags callbackFlags =
+            ImGuiTableFlags_Borders |
+            ImGuiTableFlags_RowBg |
+            ImGuiTableFlags_Resizable |
+            ImGuiTableFlags_ScrollY;
+
+        if (ImGui::BeginTable(
+            "TLSCallbackTable",
+            2,
+            callbackFlags))
+        {
+            ImGui::TableSetupScrollFreeze(0, 1);
+
+            ImGui::TableSetupColumn(
+                "Index",
+                ImGuiTableColumnFlags_WidthFixed,
+                100.0f
+            );
+
+            ImGui::TableSetupColumn(
+                "Callback RVA",
+                ImGuiTableColumnFlags_WidthStretch
+            );
+
+            ImGui::TableHeadersRow();
+
+            for (size_t i = 0;
+                i < tlsData.callBackRvaArray.size();
+                ++i)
+            {
+                ImGui::TableNextRow();
+
+                ImGui::TableSetColumnIndex(0);
+                ImGui::Text("%llu",
+                    (unsigned long long)i);
+
+                ImGui::TableSetColumnIndex(1);
+
+                ImGui::PushFont(g_HexFont);
+
+                ImGui::Text(
+                    "%s",
+                    tlsData.callBackRvaArray[i].c_str()
+                );
+
+                ImGui::PopFont();
+            }
+
+            ImGui::EndTable();
+        }
+    }
+
+    ImGui::EndChild();
+
+    ImGui::Separator();
+
+    // =========================================================
+    // 3. TLS RawData
+    // =========================================================
+
+    ImGui::BeginChild(
+        "TLS RawData Window",
+        ImVec2(0, 0),
+        true,
+        ImGuiWindowFlags_HorizontalScrollbar
+    );
+
+    ImGui::Text("TLS RawData");
+    ImGui::Separator();
+
+    if (tlsData.rawData.empty())
+    {
+        ImGui::Text(u8"无TLS RawData");
+    }
+    else
+    {
+        DrawHexDump(
+            tlsData.rawData.data(),
+            tlsData.rawData.size(),
+            16
+        );
+    }
+
+    ImGui::EndChild();
+
+    ImGui::EndChild();
+}
+
 void App::DrawImportView()
 {
     if (importDatas.empty())
@@ -853,7 +1093,7 @@ void App::DrawDelayLoadImportView()
     }
 
     ImGui::BeginChild("Delay Load Import View");
-    ImGui::Text("Import Information");
+    ImGui::Text("Delay Load Import Information");
     ImGui::Separator();
 
 
@@ -1342,6 +1582,14 @@ void App::DrawPETree()
         }
         ImGui::TreePop();
     }
+    if (ImGui::TreeNodeEx("TLS", ImGuiTreeNodeFlags_Leaf))
+    {
+        if (ImGui::IsItemClicked())
+        {
+            currentView = View_TLS;
+        }
+        ImGui::TreePop();
+    }
 
     ImGui::EndChild();
 }
@@ -1460,6 +1708,7 @@ void App::OpenFile()
     baseRelocaleData = peCore.GetBaseRelocaleData();
     boundImportData = peCore.GetBoundImportData();
     delayImportDatas = peCore.GetDelayImportData();
+    tlsData = peCore.GetTlsDirectoryData();
 }
 
 void App::CloseFile()

@@ -23,6 +23,7 @@ enum ViewType
 	View_BaseRelocale,
 	View_BoundImport,
 	View_DelayImport,
+	View_TLS,
 };
 
 extern ImFont* g_HexFont;
@@ -59,6 +60,7 @@ private:
 	std::vector<DosHeaderData> dosHeaderData{};
 	std::vector<BaseRelocaleEntry> baseRelocaleData{};
 	std::vector<BoundImportDataBlock> boundImportData{};
+	TlsData tlsData{};
 	ResourceNode resourceData{};
 	ResourceNode* pSelectedNode{};
 	ResourceNode* prevSelectedNode{}; // track previous selection to refresh icon
@@ -85,6 +87,7 @@ private:
 	//void DrawResourceNode(PIMAGE_RESOURCE_DIRECTORY dir,DWORD baseRva,DWORD level);
 	void DrawBaseRelocaleView();
 	void DrawBoundImport();
+	void DrawTlsView();
 	void DrawMenuBar();
 	void OpenFile();     // ÉùÃ÷
 	void CloseFile();    // ÉùÃ÷

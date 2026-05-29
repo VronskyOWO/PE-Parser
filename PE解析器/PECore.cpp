@@ -1,40 +1,40 @@
-#include "PECore.h"
+﻿#include "PECore.h"
 
 static MachineType g_MachineTypes[] =
 {
-	{0x0,    u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ�ٶ����ֶε������������κμ��������"},
-	{0x184,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Alpha AXP��32 λ��ַ�ռ�"},
-	{0x284,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Alpha 64/AXP 64��64 λ��ַ�ռ�"},
-	{0x1d3,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Matsushita AM33"},
-	{0x8664, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:x64"},
-	{0x1c0,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:ARM little endian"},
-	{0xaa64, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:ARM64 little endian"},
-	{0x1c4,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:ARM Thumb-2 little endian"},
-	{0xebc,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:EFI Byte Code"},
-	{0x14c,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Intel 386 ����߰汾�Ĵ������ͼ��ݵĴ�����"},
-	{0x200,  u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Intel Itanium ������ϵ��"},
-	{0x6232, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:LoongArch 32 λ������ϵ��"},
-	{0x6264, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:LoongArch 64 λ������ϵ��"},
-	{0x9041, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:���� M32R С endian"},
-	{0x266, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:MIPS16"},
-	{0x366, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:�� MIPS �� FPU ���ʹ��"},
-	{0x466, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:�� MIPS16 �� FPU ���ʹ��"},
-	{0x1f0, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Power PC С endian"},
-	{0x1f1, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:֧�ָ���� Power PC"},
-	{0x160, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:MIPS I ���� 32 λ��β��"},
-	{0x162, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:MIPS I ���� 32 λС endian"},
-	{0x166, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:MIPS III ���ݵ� 64 λС endian"},
-	{0x168, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:MIPS IV ���� 64 λС endian"},
-	{0x168, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:MIPS IV ���� 64 λС endian"},
-	{0x5032, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:RISC-V 32 λ��ַ�ռ�"},
-	{0x5064, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:RISC-V 64 λ��ַ�ռ�"},
-	{0x5128, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:RISC-V 128 λ��ַ�ռ�"},
-	{0x1a2, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Hitachi SH3"},
-	{0x1a3, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Hitachi SH3 DSP"},
-	{0x1a6, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Hitachi SH4"},
-	{0x1a8, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:Hitachi SH5"},
-	{0x1c2, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:ARM Thumb/Thumb-2 Little-Endian"},
-	{0x169, u8"�ֶα�ʾ:��� PE �ļ���Ϊ����CPU�ܹ������,ָʾPE����ƽ̨����ǰ:MIPS little-endian WCE v2"},
+	{0x0,    u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前假定此字段的内容适用于任何计算机类型"},
+	{0x184,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Alpha AXP，32 位地址空间"},
+	{0x284,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Alpha 64/AXP 64，64 位地址空间"},
+	{0x1d3,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Matsushita AM33"},
+	{0x8664, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:x64"},
+	{0x1c0,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM little endian"},
+	{0xaa64, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM64 little endian"},
+	{0x1c4,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM Thumb-2 little endian"},
+	{0xebc,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:EFI Byte Code"},
+	{0x14c,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Intel 386 或更高版本的处理器和兼容的处理器"},
+	{0x200,  u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Intel Itanium 处理器系列"},
+	{0x6232, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:LoongArch 32 位处理器系列"},
+	{0x6264, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:LoongArch 64 位处理器系列"},
+	{0x9041, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:三菱 M32R 小 endian"},
+	{0x266, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS16"},
+	{0x366, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:将 MIPS 与 FPU 结合使用"},
+	{0x466, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:将 MIPS16 与 FPU 结合使用"},
+	{0x1f0, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Power PC 小 endian"},
+	{0x1f1, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:支持浮点的 Power PC"},
+	{0x160, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS I 兼容 32 位大尾号"},
+	{0x162, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS I 兼容 32 位小 endian"},
+	{0x166, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS III 兼容的 64 位小 endian"},
+	{0x168, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS IV 兼容 64 位小 endian"},
+	{0x168, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS IV 兼容 64 位小 endian"},
+	{0x5032, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:RISC-V 32 位地址空间"},
+	{0x5064, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:RISC-V 64 位地址空间"},
+	{0x5128, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:RISC-V 128 位地址空间"},
+	{0x1a2, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH3"},
+	{0x1a3, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH3 DSP"},
+	{0x1a6, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH4"},
+	{0x1a8, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:Hitachi SH5"},
+	{0x1c2, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:ARM Thumb/Thumb-2 Little-Endian"},
+	{0x169, u8"字段表示:这个 PE 文件是为哪种CPU架构编译的,指示PE运行平台。当前:MIPS little-endian WCE v2"},
 };
 BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 {
@@ -71,7 +71,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 	if (*(PWORD)pCurrentAddrOfFileView != IMAGE_DOS_SIGNATURE || ((PIMAGE_NT_HEADERS)((PCHAR)pCurrentAddrOfFileView + ((PIMAGE_DOS_HEADER)pCurrentAddrOfFileView)->e_lfanew))->Signature != IMAGE_NT_SIGNATURE)
 	{
 		DWORD errorCode = GetLastError();
-		logInfo = { L"�Ǳ�׼PE�ļ�" };
+		logInfo = { L"非标准PE文件" };
 		CloseFile();
 		return FALSE;
 	}
@@ -90,6 +90,7 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		currentFile.relocaleDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
 		currentFile.boundImportDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
 		currentFile.delayLoadImportDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT];
+		currentFile.TlsDirectoryDir = &currentFile.pNtHeader64->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS];
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_NT_OPTIONAL_HDR32_MAGIC)
 	{
@@ -104,12 +105,13 @@ BOOLEAN PECore::OpenFile(LPSTR filePath,_Out_ std::wstring& logInfo)
 		currentFile.relocaleDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BASERELOC];
 		currentFile.boundImportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT];
 		currentFile.delayLoadImportDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT];
+		currentFile.TlsDirectoryDir = &currentFile.pNtHeader32->OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_TLS];
 	}
 	else if (pNTHeader->OptionalHeader.Magic == IMAGE_ROM_OPTIONAL_HDR_MAGIC)
 	{
-		//ROMӳ��
+		//ROM映像
 		DWORD errorCode = GetLastError();
-		logInfo = { L"�ݲ�֧��ROMӳ��" };
+		logInfo = { L"暂不支持ROM映像" };
 		CloseFile();
 		return FALSE;
 		
@@ -139,7 +141,7 @@ std::vector<DosHeaderData> PECore::GetDosHeaderData()
     data.push_back({#field, val, desc});              \
 }
 
-	ADD_WORD(e_magic, u8"[Magic number,����һ�����]")
+	ADD_WORD(e_magic, u8"[Magic number,就是一个标记]")
 	ADD_WORD(e_cblp, u8"[Bytes on last page of file]")
 	ADD_WORD(e_cp, u8"[Pages in file]")
 	ADD_WORD(e_crlc, u8"[Relocations]")
@@ -153,11 +155,11 @@ std::vector<DosHeaderData> PECore::GetDosHeaderData()
 	ADD_WORD(e_cs, u8"[Initial (relative) CS value]")
 	ADD_WORD(e_lfarlc, u8"[File address of relocation table]")
 	ADD_WORD(e_ovno, u8"[Overlay number]")
-	ADD_ARRAY(e_res,4,4,u8"[����]")
+	ADD_ARRAY(e_res,4,4,u8"[保留]")
 	ADD_WORD(e_oemid, u8"[OEM identifier (for e_oeminfo)]")
 	ADD_WORD(e_oeminfo, u8"[OEM information; e_oemid specific")
-	ADD_ARRAY(e_res2,10,4,u8"[����]")
-	ADD_DWORD(e_lfanew, u8"[File address of new exe header��NT Header���ļ���ַ=�ļ�ͷ+e_lfanew]")
+	ADD_ARRAY(e_res2,10,4,u8"[保留]")
+	ADD_DWORD(e_lfanew, u8"[File address of new exe header。NT Header的文件地址=文件头+e_lfanew]")
 
 #undef ADD_ARRAY
 #undef ADD_DWORD
@@ -168,8 +170,8 @@ std::vector<DosHeaderData> PECore::GetDosHeaderData()
 
 NtSignatureData PECore::GetNtSignatureData()
 {
-	if (currentFile.is64) return { u8"Signature", ToHex(currentFile.pNtHeader64->Signature,8), u8"һ��ǩ��,��ʶ���ļ�Ϊ PE ��ʽӳ���ļ�" };
-	else return { u8"Signature", ToHex(currentFile.pNtHeader32->Signature,8), u8"һ��ǩ��,��ʶ���ļ�Ϊ PE ��ʽӳ���ļ�" };
+	if (currentFile.is64) return { u8"Signature", ToHex(currentFile.pNtHeader64->Signature,8), u8"一个签名,标识该文件为 PE 格式映像文件" };
+	else return { u8"Signature", ToHex(currentFile.pNtHeader32->Signature,8), u8"一个签名,标识该文件为 PE 格式映像文件" };
 }
 std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
 {
@@ -184,12 +186,12 @@ std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
     data.push_back({#field, ToHex(currentFile.pNtHeader64->FileHeader.field, 8), desc});
 
 		ADD_WORD(Machine, GetMachineType(currentFile.pNtHeader64->FileHeader.Machine)->description)
-		ADD_WORD(NumberOfSections, u8"Section(��)������")
-		ADD_DWORD(TimeDateStamp, u8"��PE�Ĵ���ʱ��")
-		ADD_DWORD(PointerToSymbolTable, u8"COFF ���ű����ļ�ƫ����")
-		ADD_DWORD(NumberOfSymbols, u8"���ű��е�����")
-		ADD_WORD(SizeOfOptionalHeader, u8"OptionalHeader�Ĵ�С���������ļ�����Ҫ���� ���ڶ����ļ�����ֵӦΪ�㡣")
-		ADD_WORD(Characteristics, u8"ָʾ�ļ����Եı�־")
+		ADD_WORD(NumberOfSections, u8"Section(节)的数量")
+		ADD_DWORD(TimeDateStamp, u8"此PE的创建时间")
+		ADD_DWORD(PointerToSymbolTable, u8"COFF 符号表的文件偏移量")
+		ADD_DWORD(NumberOfSymbols, u8"符号表中的项数")
+		ADD_WORD(SizeOfOptionalHeader, u8"OptionalHeader的大小。但对象文件不需要它。 对于对象文件，此值应为零。")
+		ADD_WORD(Characteristics, u8"指示文件属性的标志")
 			
 #undef ADD_DWORD
 #undef ADD_WORD
@@ -203,12 +205,12 @@ std::vector<NtFileHeaderData> PECore::GetNtFileHeaderData()
     data.push_back({#field, ToHex(currentFile.pNtHeader32->FileHeader.field, 8), desc});
 
 		ADD_WORD(Machine, GetMachineType(currentFile.pNtHeader32->FileHeader.Machine)->description)
-			ADD_WORD(NumberOfSections, u8"Section(��)������")
-			ADD_DWORD(TimeDateStamp, u8"��PE�Ĵ���ʱ��")
-			ADD_DWORD(PointerToSymbolTable, u8"COFF ���ű����ļ�ƫ����")
-			ADD_DWORD(NumberOfSymbols, u8"���ű��е�����")
-			ADD_WORD(SizeOfOptionalHeader, u8"OptionalHeader�Ĵ�С���������ļ�����Ҫ���� ���ڶ����ļ�����ֵӦΪ�㡣")
-			ADD_WORD(Characteristics, u8"ָʾ�ļ����Եı�־")
+			ADD_WORD(NumberOfSections, u8"Section(节)的数量")
+			ADD_DWORD(TimeDateStamp, u8"此PE的创建时间")
+			ADD_DWORD(PointerToSymbolTable, u8"COFF 符号表的文件偏移量")
+			ADD_DWORD(NumberOfSymbols, u8"符号表中的项数")
+			ADD_WORD(SizeOfOptionalHeader, u8"OptionalHeader的大小。但对象文件不需要它。 对于对象文件，此值应为零。")
+			ADD_WORD(Characteristics, u8"指示文件属性的标志")
 
 #undef ADD_DWORD
 #undef ADD_WORD
@@ -235,7 +237,7 @@ std::vector<ExportData> PECore::GetExportData()
 		
 		flag = false;
 		size_t j = 0;
-		//�ж�AddressOfFunctions[i]�ǲ������Ƶ���
+		//判断AddressOfFunctions[i]是不是名称导出
 		for (j; j < pExportDir->NumberOfNames; j++)
 		{
 			if (AddressOfNameOrdinals[j] == i)
@@ -300,15 +302,15 @@ std::vector<ImportData> PECore::GetImportData()
 				
 				if (IMAGE_SNAP_BY_ORDINAL64(pThunk->u1.Ordinal))
 				{
-					//����ŵ���
+					//按序号导入
 					WORD ordinal = IMAGE_ORDINAL64(pThunk->u1.Ordinal);
 					funcInfo.importByOrdinal = true;
-					funcInfo.funcName = std::string(u8"����ŵ���");
+					funcInfo.funcName = std::string(u8"按序号导入");
 					funcInfo.ordinal = ToHex(ordinal, 4);
 				}
 				else
 				{
-					//�����Ƶ���
+					//按名称导入
 					PIMAGE_IMPORT_BY_NAME pImportByName =
 						(PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView +
 							RvaToFoa(pThunk->u1.AddressOfData));
@@ -331,7 +333,7 @@ std::vector<ImportData> PECore::GetImportData()
 				{
 					WORD ordinal = IMAGE_ORDINAL32(pThunk->u1.Ordinal);
 					funcInfo.importByOrdinal = true;
-					funcInfo.funcName = std::string(u8"����ŵ���");
+					funcInfo.funcName = std::string(u8"按序号导入");
 					funcInfo.ordinal = ToHex(ordinal, 4);
 				}
 				else
@@ -394,35 +396,35 @@ OptionalHeaderData PECore::GetNtOptionalHeaderData()
 #define ADD_DATA_DIRECTORY_ENTRY(i, desc) \
     data.DataDirectory.push_back({ToHex(currentFile.pNtHeader64->OptionalHeader.DataDirectory[i].VirtualAddress, 8), ToHex(currentFile.pNtHeader64->OptionalHeader.DataDirectory[i].Size, 8), desc});
 			
-			ADD_WORD(Magic, u8"�����˾����ļ���PE32����PE32+��ִ���ļ����������ֵ�� 0x10B���������ʶΪ��ͨ��ִ���ļ�(PE32)��0x107 �����ʶΪ ROM ����0x20B �����ʶΪ PE32+ ��ִ���ļ�(x64)��")
-			ADD_BYTE(MajorLinkerVersion, u8"���������汾��")
-			ADD_BYTE(MinorLinkerVersion, u8"�������ΰ汾��")
-			ADD_DWORD(SizeOfCode, u8"����(.text)�ڵĴ�С�������ڶ���������Ϊ���д���ε��ܺ�")
-			ADD_DWORD(SizeOfInitializedData, u8"�ѳ�ʼ�����ݽڵĴ�С�������ڶ�����ݽڣ���Ϊ���д���ڵ��ܺ͡�")
-			ADD_DWORD(SizeOfUninitializedData, u8"δ��ʼ�����ݽڣ�BSS���Ĵ�С�������ڶ��BSS�ڣ���Ϊ���д���ڵ��ܺ͡�")
-			ADD_DWORD(AddressOfEntryPoint, u8"��ִ���ļ����ص��ڴ�ʱ����ڵ������ImageBase��ƫ��(RVA)�����ڳ���ӳ��������ʼ��ַ�������豸���������ǳ�ʼ�������ĵ�ַ����̬���ӿ⣨DLL������ڵ�Ϊ��ѡ�ֶΡ�����������ڵ㣬���ֶα�����Ϊ�㡣")
-			ADD_DWORD(BaseOfCode, u8"�������ʼ�������ImageBase��ƫ����")
-			ADD_QWORD(ImageBase, u8"ӳ����ص��ڴ�ʱ���ֽڵ���ѡ��ַ")
-			ADD_DWORD(SectionAlignment, u8"�ڼ��ص��ڴ�ʱ�Ķ��뷽ʽ�����ֽ�Ϊ��λ������ֵ������ڻ����FileAlignment��Ĭ��ֵΪ�üܹ���ҳ���С��")
-			ADD_DWORD(FileAlignment, u8"The alignment factor (in bytes) that is used to align the raw data of sections in the image file.��ֵ�����ǽ��� 512 �� 65536������֮��� 2 ���ݴη���Ĭ��ֵΪ 512�����SectionAlignmentС��ϵͳ�ܹ���ҳ���С����FileAlignment������SectionAlignment����һ�¡�")
-			ADD_WORD(MajorOperatingSystemVersion, u8"�������ϵͳ�����汾��")
-			ADD_WORD(MinorOperatingSystemVersion, u8"�������ϵͳ�Ĵΰ汾��")
-			ADD_WORD(MajorImageVersion, u8"ӳ������汾��")
-			ADD_WORD(MinorImageVersion, u8"ӳ��Ĵΰ汾��")
-			ADD_WORD(MajorSubsystemVersion, u8"��ϵͳ�����汾��")
-			ADD_WORD(MinorSubsystemVersion, u8"��ϵͳ�Ĵΰ汾��")
-			ADD_DWORD(Win32VersionValue, u8"����������Ϊ��")
-			ADD_DWORD(SizeOfImage, u8"ӳ����ص��ڴ��еĴ�С���ô�С������SectionAlignmentֵ����������")
-			ADD_DWORD(SizeOfHeaders, u8"MS-DOS stub��PE ͷ�ͽ�ͷ���ܴ�С������ȡ��Ϊ FileAlignment �ı���")
-			ADD_DWORD(CheckSum, u8"ӳ���ļ�У��͡����ڼ���У��͵��㷨�Ѽ��ɵ� IMAGHELP.DLL �С�����ʱ����������ݽ�����֤������������������ʱ���ص����ж�̬���ӿ⣨DLL�����Լ����ص��ؼ� Windows �����е����ж�̬���ӿ⣨DLL����")
-			ADD_WORD(Subsystem, u8"���д�ӳ���������ϵͳ")
-			ADD_WORD(DllCharacteristics, u8"DLL ����")
-			ADD_QWORD(SizeOfStackReserve, u8"Ҫ�����Ķ�ջ��С�����ύ SizeOfStackCommit ���֣����ಿ�ֻᰴ�����ҳ����䣬ֱ���ﵽԤ�����ܴ�С��")
-			ADD_QWORD(SizeOfStackCommit, u8"Ҫ�ύ�Ķ�ջ��С")
-			ADD_QWORD(SizeOfHeapReserve, u8"Ҫ�����ı��ضѿռ��С�����ύ SizeOfHeapCommit ���֣����ಿ�ֻ���ҳ���䣬ֱ���ﵽԤ����С")
-			ADD_QWORD(SizeOfHeapCommit, u8"Ҫ�ύ�ı��ضѿռ��С")
-			ADD_DWORD(LoaderFlags, u8"����������Ϊ��")
-			ADD_DWORD(NumberOfRvaAndSizes, u8"����Ŀ¼������")
+			ADD_WORD(Magic, u8"决定了镜像文件是PE32还是PE32+可执行文件。最常见的数值是 0x10B，它将其标识为普通可执行文件(PE32)。0x107 将其标识为 ROM 镜像，0x20B 将其标识为 PE32+ 可执行文件(x64)。")
+			ADD_BYTE(MajorLinkerVersion, u8"链接器主版本号")
+			ADD_BYTE(MinorLinkerVersion, u8"链接器次版本号")
+			ADD_DWORD(SizeOfCode, u8"代码(.text)节的大小，若存在多个代码段则为所有代码段的总和")
+			ADD_DWORD(SizeOfInitializedData, u8"已初始化数据节的大小，若存在多个数据节，则为所有此类节的总和。")
+			ADD_DWORD(SizeOfUninitializedData, u8"未初始化数据节（BSS）的大小，若存在多个BSS节，则为所有此类节的总和。")
+			ADD_DWORD(AddressOfEntryPoint, u8"可执行文件加载到内存时，入口点相对于ImageBase的偏移(RVA)。对于程序映像，这是起始地址；对于设备驱动，这是初始化函数的地址。动态链接库（DLL）的入口点为可选字段。若不存在入口点，此字段必须设为零。")
+			ADD_DWORD(BaseOfCode, u8"代码节起始处相对于ImageBase的偏移量")
+			ADD_QWORD(ImageBase, u8"映像加载到内存时首字节的首选地址")
+			ADD_DWORD(SectionAlignment, u8"节加载到内存时的对齐方式（以字节为单位）。该值必须大于或等于FileAlignment。默认值为该架构的页面大小。")
+			ADD_DWORD(FileAlignment, u8"The alignment factor (in bytes) that is used to align the raw data of sections in the image file.该值必须是介于 512 至 65536（含）之间的 2 的幂次方，默认值为 512。如果SectionAlignment小于系统架构的页面大小，则FileAlignment必须与SectionAlignment保持一致。")
+			ADD_WORD(MajorOperatingSystemVersion, u8"所需操作系统的主版本号")
+			ADD_WORD(MinorOperatingSystemVersion, u8"所需操作系统的次版本号")
+			ADD_WORD(MajorImageVersion, u8"映像的主版本号")
+			ADD_WORD(MinorImageVersion, u8"映像的次版本号")
+			ADD_WORD(MajorSubsystemVersion, u8"子系统的主版本号")
+			ADD_WORD(MinorSubsystemVersion, u8"子系统的次版本号")
+			ADD_DWORD(Win32VersionValue, u8"保留，必须为零")
+			ADD_DWORD(SizeOfImage, u8"映像加载到内存中的大小。该大小必须是SectionAlignment值的整数倍。")
+			ADD_DWORD(SizeOfHeaders, u8"MS-DOS stub、PE 头和节头的总大小。向上取整为 FileAlignment 的倍数")
+			ADD_DWORD(CheckSum, u8"映像文件校验和。用于计算校验和的算法已集成到 IMAGHELP.DLL 中。加载时会对以下内容进行验证：所有驱动程序、启动时加载的所有动态链接库（DLL），以及加载到关键 Windows 进程中的所有动态链接库（DLL）。")
+			ADD_WORD(Subsystem, u8"运行此映像所需的子系统")
+			ADD_WORD(DllCharacteristics, u8"DLL 特征")
+			ADD_QWORD(SizeOfStackReserve, u8"要保留的堆栈大小。仅提交 SizeOfStackCommit 部分；其余部分会按需逐个页面分配，直至达到预留的总大小。")
+			ADD_QWORD(SizeOfStackCommit, u8"要提交的堆栈大小")
+			ADD_QWORD(SizeOfHeapReserve, u8"要保留的本地堆空间大小。仅提交 SizeOfHeapCommit 部分；其余部分会逐页分配，直至达到预留大小")
+			ADD_QWORD(SizeOfHeapCommit, u8"要提交的本地堆空间大小")
+			ADD_DWORD(LoaderFlags, u8"保留，必须为零")
+			ADD_DWORD(NumberOfRvaAndSizes, u8"数据目录项数量")
 				for (size_t i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++)
 				{
 					ADD_DATA_DIRECTORY_ENTRY(i, dataDirectoryEntryDesc[i])
@@ -451,36 +453,36 @@ OptionalHeaderData PECore::GetNtOptionalHeaderData()
 #define ADD_DATA_DIRECTORY_ENTRY(i, desc) \
     data.DataDirectory.push_back({ToHex(currentFile.pNtHeader32->OptionalHeader.DataDirectory[i].VirtualAddress, 8), ToHex(currentFile.pNtHeader32->OptionalHeader.DataDirectory[i].Size, 8), desc});
 
-		ADD_WORD(Magic, u8"�����˾����ļ���PE32����PE32+��ִ���ļ����������ֵ�� 0x10B���������ʶΪ��ͨ��ִ���ļ�(PE32)��0x107 �����ʶΪ ROM ����0x20B �����ʶΪ PE32+ ��ִ���ļ�(x64)��")
-			ADD_BYTE(MajorLinkerVersion, u8"���������汾��")
-			ADD_BYTE(MinorLinkerVersion, u8"�������ΰ汾��")
-			ADD_DWORD(SizeOfCode, u8"����(.text)�ڵĴ�С�������ڶ���������Ϊ���д���ε��ܺ�")
-			ADD_DWORD(SizeOfInitializedData, u8"�ѳ�ʼ�����ݽڵĴ�С�������ڶ�����ݽڣ���Ϊ���д���ڵ��ܺ͡�")
-			ADD_DWORD(SizeOfUninitializedData, u8"δ��ʼ�����ݽڣ�BSS���Ĵ�С�������ڶ��BSS�ڣ���Ϊ���д���ڵ��ܺ͡�")
-			ADD_DWORD(AddressOfEntryPoint, u8"��ִ���ļ����ص��ڴ�ʱ����ڵ������ImageBase��ƫ��(RVA)�����ڳ���ӳ��������ʼ��ַ�������豸���������ǳ�ʼ�������ĵ�ַ����̬���ӿ⣨DLL������ڵ�Ϊ��ѡ�ֶΡ�����������ڵ㣬���ֶα�����Ϊ�㡣")
-			ADD_DWORD(BaseOfCode, u8"�������ʼ�������ImageBase��ƫ����")
-			ADD_DWORD(BaseOfData, u8"���ݽڿ�ͷ���ص��ڴ���������ӳ���ַ��ƫ����.(PE32������)��")
-			ADD_DWORD(ImageBase, u8"ӳ����ص��ڴ�ʱ���ֽڵ���ѡ��ַ")
-			ADD_DWORD(SectionAlignment, u8"�ڼ��ص��ڴ�ʱ�Ķ��뷽ʽ�����ֽ�Ϊ��λ������ֵ������ڻ����FileAlignment��Ĭ��ֵΪ�üܹ���ҳ���С��")
-			ADD_DWORD(FileAlignment, u8"The alignment factor (in bytes) that is used to align the raw data of sections in the image file.��ֵ�����ǽ��� 512 �� 65536������֮��� 2 ���ݴη���Ĭ��ֵΪ 512�����SectionAlignmentС��ϵͳ�ܹ���ҳ���С����FileAlignment������SectionAlignment����һ�¡�")
-			ADD_WORD(MajorOperatingSystemVersion, u8"�������ϵͳ�����汾��")
-			ADD_WORD(MinorOperatingSystemVersion, u8"�������ϵͳ�Ĵΰ汾��")
-			ADD_WORD(MajorImageVersion, u8"ӳ������汾��")
-			ADD_WORD(MinorImageVersion, u8"ӳ��Ĵΰ汾��")
-			ADD_WORD(MajorSubsystemVersion, u8"��ϵͳ�����汾��")
-			ADD_WORD(MinorSubsystemVersion, u8"��ϵͳ�Ĵΰ汾��")
-			ADD_DWORD(Win32VersionValue, u8"����������Ϊ��")
-			ADD_DWORD(SizeOfImage, u8"ӳ����ص��ڴ��еĴ�С���ô�С������SectionAlignmentֵ����������")
-			ADD_DWORD(SizeOfHeaders, u8"���С�ͷ���������ļ��е��ܴ�С���� FileAlignment ����,dos header + dos stub + NT header + Section Table + padding��")
-			ADD_DWORD(CheckSum, u8"ӳ���ļ�У��͡����ڼ���У��͵��㷨�Ѽ��ɵ� IMAGHELP.DLL �С�����ʱ����������ݽ�����֤������������������ʱ���ص����ж�̬���ӿ⣨DLL�����Լ����ص��ؼ� Windows �����е����ж�̬���ӿ⣨DLL����")
-			ADD_WORD(Subsystem, u8"���д�ӳ���������ϵͳ")
-			ADD_WORD(DllCharacteristics, u8"DLL ����")
-			ADD_DWORD(SizeOfStackReserve, u8"Ҫ�����Ķ�ջ��С�����ύ SizeOfStackCommit ���֣����ಿ�ֻᰴ�����ҳ����䣬ֱ���ﵽԤ�����ܴ�С��")
-			ADD_DWORD(SizeOfStackCommit, u8"Ҫ�ύ�Ķ�ջ��С")
-			ADD_DWORD(SizeOfHeapReserve, u8"Ҫ�����ı��ضѿռ��С�����ύ SizeOfHeapCommit ���֣����ಿ�ֻ���ҳ���䣬ֱ���ﵽԤ����С")
-			ADD_DWORD(SizeOfHeapCommit, u8"Ҫ�ύ�ı��ضѿռ��С")
-			ADD_DWORD(LoaderFlags, u8"����������Ϊ��")
-			ADD_DWORD(NumberOfRvaAndSizes, u8"����Ŀ¼������")
+		ADD_WORD(Magic, u8"决定了镜像文件是PE32还是PE32+可执行文件。最常见的数值是 0x10B，它将其标识为普通可执行文件(PE32)。0x107 将其标识为 ROM 镜像，0x20B 将其标识为 PE32+ 可执行文件(x64)。")
+			ADD_BYTE(MajorLinkerVersion, u8"链接器主版本号")
+			ADD_BYTE(MinorLinkerVersion, u8"链接器次版本号")
+			ADD_DWORD(SizeOfCode, u8"代码(.text)节的大小，若存在多个代码段则为所有代码段的总和")
+			ADD_DWORD(SizeOfInitializedData, u8"已初始化数据节的大小，若存在多个数据节，则为所有此类节的总和。")
+			ADD_DWORD(SizeOfUninitializedData, u8"未初始化数据节（BSS）的大小，若存在多个BSS节，则为所有此类节的总和。")
+			ADD_DWORD(AddressOfEntryPoint, u8"可执行文件加载到内存时，入口点相对于ImageBase的偏移(RVA)。对于程序映像，这是起始地址；对于设备驱动，这是初始化函数的地址。动态链接库（DLL）的入口点为可选字段。若不存在入口点，此字段必须设为零。")
+			ADD_DWORD(BaseOfCode, u8"代码节起始处相对于ImageBase的偏移量")
+			ADD_DWORD(BaseOfData, u8"数据节开头加载到内存后，相对于其映像基址的偏移量.(PE32特意有)。")
+			ADD_DWORD(ImageBase, u8"映像加载到内存时首字节的首选地址")
+			ADD_DWORD(SectionAlignment, u8"节加载到内存时的对齐方式（以字节为单位）。该值必须大于或等于FileAlignment。默认值为该架构的页面大小。")
+			ADD_DWORD(FileAlignment, u8"The alignment factor (in bytes) that is used to align the raw data of sections in the image file.该值必须是介于 512 至 65536（含）之间的 2 的幂次方，默认值为 512。如果SectionAlignment小于系统架构的页面大小，则FileAlignment必须与SectionAlignment保持一致。")
+			ADD_WORD(MajorOperatingSystemVersion, u8"所需操作系统的主版本号")
+			ADD_WORD(MinorOperatingSystemVersion, u8"所需操作系统的次版本号")
+			ADD_WORD(MajorImageVersion, u8"映像的主版本号")
+			ADD_WORD(MinorImageVersion, u8"映像的次版本号")
+			ADD_WORD(MajorSubsystemVersion, u8"子系统的主版本号")
+			ADD_WORD(MinorSubsystemVersion, u8"子系统的次版本号")
+			ADD_DWORD(Win32VersionValue, u8"保留，必须为零")
+			ADD_DWORD(SizeOfImage, u8"映像加载到内存中的大小。该大小必须是SectionAlignment值的整数倍。")
+			ADD_DWORD(SizeOfHeaders, u8"所有“头部区域”在文件中的总大小（按 FileAlignment 对齐,dos header + dos stub + NT header + Section Table + padding）")
+			ADD_DWORD(CheckSum, u8"映像文件校验和。用于计算校验和的算法已集成到 IMAGHELP.DLL 中。加载时会对以下内容进行验证：所有驱动程序、启动时加载的所有动态链接库（DLL），以及加载到关键 Windows 进程中的所有动态链接库（DLL）。")
+			ADD_WORD(Subsystem, u8"运行此映像所需的子系统")
+			ADD_WORD(DllCharacteristics, u8"DLL 特征")
+			ADD_DWORD(SizeOfStackReserve, u8"要保留的堆栈大小。仅提交 SizeOfStackCommit 部分；其余部分会按需逐个页面分配，直至达到预留的总大小。")
+			ADD_DWORD(SizeOfStackCommit, u8"要提交的堆栈大小")
+			ADD_DWORD(SizeOfHeapReserve, u8"要保留的本地堆空间大小。仅提交 SizeOfHeapCommit 部分；其余部分会逐页分配，直至达到预留大小")
+			ADD_DWORD(SizeOfHeapCommit, u8"要提交的本地堆空间大小")
+			ADD_DWORD(LoaderFlags, u8"保留，必须为零")
+			ADD_DWORD(NumberOfRvaAndSizes, u8"数据目录项数量")
 			for (size_t i = 0; i < IMAGE_NUMBEROF_DIRECTORY_ENTRIES; i++)
 			{
 				ADD_DATA_DIRECTORY_ENTRY(i, dataDirectoryEntryDesc[i])
@@ -523,16 +525,16 @@ std::vector<std::vector<BaseData>> PECore::GetSectionsTableData()
 }
 
 
-		ADD_ARRAY(Name, 8, 2, u8"section name,,��һ����NULL��β");
-		ADD_DWORD(Misc.VirtualSize, u8"���ص��ڴ���ʱ�ڵ��ܴ�С(����ǰ)�� �����ֵ���� SizeOfRawData������л�������䡣 ���ֶν��Կ�ִ��ӳ����Ч��Ӧ��Զ����ļ�����Ϊ��")
-			ADD_DWORD(VirtualAddress, u8"���ڿ�ִ��ӳ����ָ���ڼ��ص��ڴ���ʱ���ý������ӳ���ַ��RVA�� ���ڶ����ļ������ֶ���Ӧ���ض�λǰ��һ���ֽڵĵ�ַ��Ϊ�������������Ӧ�����ֶ�����Ϊ�㡣 ���������ض�λ�ڼ��ƫ�����м�ȥ������ֵ")
-			ADD_DWORD(SizeOfRawData, u8"Section���ļ��а�FileAlignment�����Ĵ�С")
-			ADD_DWORD(PointerToRawData, u8"ָ��COFF�ļ��иýڵ�һҳ���ļ�ָ�롣���ڿ�ִ��ӳ�񣬸�ֵ�����ǿ�ѡͷ��FileAlignment��������������Ŀ���ļ���Ϊ���������ܣ���ֵӦ��4�ֽڱ߽���롣��ĳ�ڽ�����δ��ʼ�����ݣ�����ֶ�Ӧ��Ϊ��")
-			ADD_DWORD(PointerToRelocations, u8"ָ��ý��ض�λ��Ŀ��ʼλ�õ��ļ�ָ�롣���ڿ�ִ�о�������ض�λ���������ָ��ᱻ��Ϊ��")
-			ADD_DWORD(PointerToLinenumbers, u8"ָ��ý��к���Ŀ��ʼλ�õ��ļ�ָ�롣���û�� COFF �кţ����ֵ��Ϊ�㡣���ڿ�ִ���ļ����ԣ���ֵӦΪ�㣬��Ϊ COFF ������Ϣ�ѱ�����")
-			ADD_WORD(NumberOfRelocations, u8"�ýڵ��ض�λ��Ŀ���������ڿ�ִ�о��񣬴�ֵ��Ϊ��")
-			ADD_WORD(NumberOfLinenumbers, u8"�ýڵ��к���Ŀ��������image����ֵӦΪ�㣬��Ϊ COFF ������Ϣ�ѱ����á�")
-			ADD_DWORD(Characteristics, u8"�����ý����Եı�־")
+		ADD_ARRAY(Name, 8, 2, u8"section name,,不一定以NULL结尾");
+		ADD_DWORD(Misc.VirtualSize, u8"加载到内存中时节的总大小(对齐前)。 如果此值大于 SizeOfRawData，则节中会用零填充。 此字段仅对可执行映像有效，应针对对象文件设置为零")
+			ADD_DWORD(VirtualAddress, u8"对于可执行映像，是指当节加载到内存中时，该节相对于映像基址的RVA。 对于对象文件，此字段是应用重定位前第一个字节的地址；为简单起见，编译器应将此字段设置为零。 否则，它是重定位期间从偏移量中减去的任意值")
+			ADD_DWORD(SizeOfRawData, u8"Section在文件中按FileAlignment对齐后的大小")
+			ADD_DWORD(PointerToRawData, u8"指向COFF文件中该节第一页的文件指针。对于可执行映像，该值必须是可选头中FileAlignment的整数倍。对于目标文件，为获得最佳性能，该值应按4字节边界对齐。若某节仅包含未初始化数据，则此字段应设为零")
+			ADD_DWORD(PointerToRelocations, u8"指向该节重定位条目起始位置的文件指针。对于可执行镜像或无重定位的情况，该指针会被设为零")
+			ADD_DWORD(PointerToLinenumbers, u8"指向该节行号条目起始位置的文件指针。如果没有 COFF 行号，则该值设为零。对于可执行文件而言，此值应为零，因为 COFF 调试信息已被弃用")
+			ADD_WORD(NumberOfRelocations, u8"该节的重定位条目数量。对于可执行镜像，此值设为零")
+			ADD_WORD(NumberOfLinenumbers, u8"该节的行号条目数。对于image，此值应为零，因为 COFF 调试信息已被弃用。")
+			ADD_DWORD(Characteristics, u8"描述该节特性的标志")
 
 			data.push_back(section);
 #undef ADD_ARRAY
@@ -679,10 +681,10 @@ std::vector<DIData> PECore::GetDelayImportData()
 				FuncInfo funcInfo{};
 				if (IMAGE_SNAP_BY_ORDINAL64(pINT->u1.Ordinal))
 				{
-					//����ŵ���
+					//按序号导入
 					WORD ordinal = IMAGE_ORDINAL64(pINT->u1.Ordinal);
 					funcInfo.importByOrdinal = true;
-					funcInfo.funcName = std::string(u8"����ŵ���");
+					funcInfo.funcName = std::string(u8"按序号导入");
 					funcInfo.ordinal = ToHex(ordinal, 4);
 				}
 				else
@@ -696,7 +698,7 @@ std::vector<DIData> PECore::GetDelayImportData()
 					{
 						addrRva = pINT->u1.AddressOfData - currentFile.pNtHeader64->OptionalHeader.ImageBase;
 					}
-					//�����Ƶ���
+					//按名称导入
 					DWORD addrFoa = RvaToFoa(addrRva);
 					PIMAGE_IMPORT_BY_NAME pImportByName = (PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView + addrFoa);
 					funcInfo.importByOrdinal = false;
@@ -725,10 +727,10 @@ std::vector<DIData> PECore::GetDelayImportData()
 				FuncInfo funcInfo{};
 				if (IMAGE_SNAP_BY_ORDINAL32(pINT->u1.Ordinal))
 				{
-					//����ŵ���
+					//按序号导入
 					WORD ordinal = IMAGE_ORDINAL32(pINT->u1.Ordinal);
 					funcInfo.importByOrdinal = true;
-					funcInfo.funcName = std::string(u8"����ŵ���");
+					funcInfo.funcName = std::string(u8"按序号导入");
 					funcInfo.ordinal = ToHex(ordinal, 4);
 				}
 				else
@@ -742,7 +744,7 @@ std::vector<DIData> PECore::GetDelayImportData()
 					{
 						addrRva = pINT->u1.AddressOfData - currentFile.pNtHeader32->OptionalHeader.ImageBase;
 					}
-					//�����Ƶ���
+					//按名称导入
 					DWORD addrFoa = RvaToFoa(addrRva);
 					PIMAGE_IMPORT_BY_NAME pImportByName = (PIMAGE_IMPORT_BY_NAME)((PCHAR)pCurrentAddrOfFileView + addrFoa);
 					funcInfo.importByOrdinal = false;
@@ -759,6 +761,220 @@ std::vector<DIData> PECore::GetDelayImportData()
 	}
 	return ret;
 }
+
+
+
+TlsData PECore::GetTlsDirectoryData()
+{
+	TlsData tlsData{};
+	if (currentFile.TlsDirectoryDir->VirtualAddress == 0 &&
+		currentFile.TlsDirectoryDir->Size == 0)
+	{
+		return tlsData;
+	}
+
+	if (currentFile.is64)
+	{
+		PIMAGE_TLS_DIRECTORY64 pTlsDir =
+			(PIMAGE_TLS_DIRECTORY64)(
+				(PCHAR)pCurrentAddrOfFileView +
+				RvaToFoa(currentFile.TlsDirectoryDir->VirtualAddress)
+				);
+
+		tlsData.StartAddressOfRawData =
+			ToHex(pTlsDir->StartAddressOfRawData, 16);
+
+		tlsData.EndAddressOfRawData =
+			ToHex(pTlsDir->EndAddressOfRawData, 16);
+
+		tlsData.AddressOfIndex =
+			ToHex(pTlsDir->AddressOfIndex, 16);
+
+		tlsData.AddressOfCallBacks =
+			ToHex(pTlsDir->AddressOfCallBacks, 16);
+
+		tlsData.SizeOfZeroFill =
+			ToHex(pTlsDir->SizeOfZeroFill, 8);
+
+		tlsData.Characteristics =
+			ToHex(pTlsDir->Characteristics, 8);
+
+
+		// =====================================================
+		// ⭐ 新增：解析 TLS RawData
+		// =====================================================
+		if (pTlsDir->StartAddressOfRawData &&
+			pTlsDir->EndAddressOfRawData &&
+			pTlsDir->EndAddressOfRawData >= pTlsDir->StartAddressOfRawData)
+		{
+			ULONGLONG rawDataRva =
+				pTlsDir->StartAddressOfRawData -
+				currentFile.pNtHeader64->OptionalHeader.ImageBase;
+
+			ULONGLONG rawDataSize =
+				pTlsDir->EndAddressOfRawData -
+				pTlsDir->StartAddressOfRawData;
+
+			DWORD rawDataFoa = RvaToFoa(rawDataRva);
+
+			// ⭐ 新增：保存 RVA/Size 给 UI
+			tlsData.rawDataRva = ToHex(rawDataRva, 16);
+			tlsData.rawDataSize = ToHex(rawDataSize, 16);
+
+			// ⭐ 新增：避免 FOA=0 崩溃
+			if (rawDataFoa != 0 && rawDataSize > 0)
+			{
+				BYTE* pRawData =
+					(BYTE*)pCurrentAddrOfFileView + rawDataFoa;
+
+				tlsData.rawData.assign(
+					pRawData,
+					pRawData + rawDataSize
+				);
+			}
+		}
+
+
+		if (pTlsDir->AddressOfCallBacks != 0)
+		{
+			ULONGLONG AddressOfCallBacksRVA =
+				pTlsDir->AddressOfCallBacks -
+				currentFile.pNtHeader64->OptionalHeader.ImageBase;
+
+			if (AddressOfCallBacksRVA == 0)
+			{
+				return tlsData;
+			}
+
+			ULONGLONG callbackFoa =
+				RvaToFoa(AddressOfCallBacksRVA);
+
+			// ⭐ 新增：避免非法FOA
+			if (callbackFoa == 0)
+			{
+				return tlsData;
+			}
+
+			ULONGLONG* pTlsCallBack =
+				(ULONGLONG*)((PCHAR)pCurrentAddrOfFileView + callbackFoa);
+
+			while (*pTlsCallBack)
+			{
+				tlsData.callBackRvaArray.push_back(
+					ToHex(
+						*pTlsCallBack -
+						currentFile.pNtHeader64->OptionalHeader.ImageBase,
+						16
+					)
+				);
+
+				pTlsCallBack++;
+			}
+		}
+	}
+	else
+	{
+		PIMAGE_TLS_DIRECTORY32 pTlsDir =
+			(PIMAGE_TLS_DIRECTORY32)(
+				(PCHAR)pCurrentAddrOfFileView +
+				RvaToFoa(currentFile.TlsDirectoryDir->VirtualAddress)
+				);
+
+		tlsData.StartAddressOfRawData =
+			ToHex(pTlsDir->StartAddressOfRawData, 8);
+
+		tlsData.EndAddressOfRawData =
+			ToHex(pTlsDir->EndAddressOfRawData, 8);
+
+		tlsData.AddressOfIndex =
+			ToHex(pTlsDir->AddressOfIndex, 8);
+
+		tlsData.AddressOfCallBacks =
+			ToHex(pTlsDir->AddressOfCallBacks, 8);
+
+		tlsData.SizeOfZeroFill =
+			ToHex(pTlsDir->SizeOfZeroFill, 8);
+
+		tlsData.Characteristics =
+			ToHex(pTlsDir->Characteristics, 8);
+
+
+		// =====================================================
+		// ⭐ 新增：解析 TLS RawData
+		// =====================================================
+		if (pTlsDir->StartAddressOfRawData &&
+			pTlsDir->EndAddressOfRawData &&
+			pTlsDir->EndAddressOfRawData >= pTlsDir->StartAddressOfRawData)
+		{
+			DWORD rawDataRva =
+				pTlsDir->StartAddressOfRawData -
+				currentFile.pNtHeader32->OptionalHeader.ImageBase;
+
+			DWORD rawDataSize =
+				pTlsDir->EndAddressOfRawData -
+				pTlsDir->StartAddressOfRawData;
+
+			DWORD rawDataFoa = RvaToFoa(rawDataRva);
+
+			// ⭐ 新增：保存 RVA/Size 给 UI
+			tlsData.rawDataRva = ToHex(rawDataRva, 8);
+			tlsData.rawDataSize = ToHex(rawDataSize, 8);
+
+			// ⭐ 新增：避免 FOA=0 崩溃
+			if (rawDataFoa != 0 && rawDataSize > 0)
+			{
+				BYTE* pRawData =
+					(BYTE*)pCurrentAddrOfFileView + rawDataFoa;
+
+				tlsData.rawData.assign(
+					pRawData,
+					pRawData + rawDataSize
+				);
+			}
+		}
+
+
+		if (pTlsDir->AddressOfCallBacks != 0)
+		{
+			DWORD AddressOfCallBacksRVA =
+				pTlsDir->AddressOfCallBacks -
+				currentFile.pNtHeader32->OptionalHeader.ImageBase;
+
+			if (AddressOfCallBacksRVA == 0)
+			{
+				return tlsData;
+			}
+
+			DWORD callbackFoa =
+				RvaToFoa(AddressOfCallBacksRVA);
+
+			// ⭐ 新增：避免非法FOA
+			if (callbackFoa == 0)
+			{
+				return tlsData;
+			}
+
+			DWORD* pTlsCallBack =
+				(DWORD*)((PCHAR)pCurrentAddrOfFileView + callbackFoa);
+
+			while (*pTlsCallBack)
+			{
+				tlsData.callBackRvaArray.push_back(
+					ToHex(
+						*pTlsCallBack -
+						currentFile.pNtHeader32->OptionalHeader.ImageBase,
+						8
+					)
+				);
+
+				pTlsCallBack++;
+			}
+		}
+	}
+
+	return tlsData;
+}
+
 
 void PECore::ParseResourceNode(
 	PIMAGE_RESOURCE_DIRECTORY dir,
@@ -781,7 +997,7 @@ void PECore::ParseResourceNode(
 	{
 		ResourceNode subNode{};
 		subNode.level = level + 1;
-		// --- ���� ---
+		// --- 名字 ---
 		if (entry->NameIsString)
 		{
 			DWORD nameRva = baseRva + entry->NameOffset;
@@ -813,7 +1029,7 @@ void PECore::ParseResourceNode(
 			}
 		}
 
-		// --- ��Ŀ¼ ---
+		// --- 子目录 ---
 		if (entry->DataIsDirectory)
 		{
 			DWORD subRva = baseRva + (entry->OffsetToDirectory & 0x7FFFFFFF);
@@ -836,7 +1052,7 @@ void PECore::ParseResourceNode(
 			data.codePage = pResDataEntry->CodePage;
 			data.reserved = pResDataEntry->Reserved;
 
-			//���� raw data
+			//拷贝 raw data
 			DWORD dataFoa = RvaToFoa(data.dataRva);
 			BYTE* src = (BYTE*)pCurrentAddrOfFileView + dataFoa;
 
@@ -931,13 +1147,13 @@ const MachineType* PECore::GetMachineType(WORD machine)
 
 ULONGLONG PECore::RvaToFoa(ULONGLONG rva)
 {
-	// �� headers ��
+	// 在 headers 中
 	if (rva < currentFile.sectionHeaders[0].VirtualAddress)
 	{
 		return rva;
 	}
 
-	// ���� section
+	// 遍历 section
 	for (DWORD i = 0; i < currentFile.sectionCount; i++)
 	{
 		PIMAGE_SECTION_HEADER section = &currentFile.sectionHeaders[i];

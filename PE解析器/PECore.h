@@ -22,6 +22,7 @@ public:
 	ResourceNode GetResourcesData();
 	std::vector<BoundImportDataBlock> GetBoundImportData();
 	std::vector<DIData> GetDelayImportData();
+	TlsData GetTlsDirectoryData();
 
 	void ParseResourceNode(
 		PIMAGE_RESOURCE_DIRECTORY dir,

@@ -26,5 +26,6 @@ struct PEFile2
 	PIMAGE_DATA_DIRECTORY relocaleDir{};
 	PIMAGE_DATA_DIRECTORY boundImportDir{};
 	PIMAGE_DATA_DIRECTORY delayLoadImportDir{};
+	PIMAGE_DATA_DIRECTORY TlsDirectoryDir{};
 	bool is64 = false;
 };

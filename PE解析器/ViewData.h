@@ -123,3 +123,21 @@ struct BoundImportDataBlock
 	DEF_IMAGE_BOUND_IMPORT_DESCRIPTOR biDescriptor{};
 	std::vector<DEF_IMAGE_BOUND_FORWARDER_REF> refs{};
 };
+
+
+struct TlsData
+{
+	std::string StartAddressOfRawData;
+	std::string EndAddressOfRawData;
+	std::string AddressOfIndex;
+	std::string AddressOfCallBacks;
+	std::string SizeOfZeroFill;
+	std::string Characteristics;
+
+	std::vector<BYTE> rawData;
+	std::string rawDataRva;
+	std::string rawDataSize;
+
+	std::vector<std::string> callBackRvaArray;
+};
+
