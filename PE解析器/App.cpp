@@ -694,7 +694,7 @@ void App::DrawTlsView()
     // =========================================================
     // 无 TLS
     // =========================================================
-    if (tlsData.StartAddressOfRawData.empty())
+    if (!tlsData.hasTls)
     {
         ImGui::Text(u8"当前PE不存在TLS目录");
         ImGui::EndChild();

@@ -770,9 +770,11 @@ TlsData PECore::GetTlsDirectoryData()
 	if (currentFile.TlsDirectoryDir->VirtualAddress == 0 &&
 		currentFile.TlsDirectoryDir->Size == 0)
 	{
+		tlsData.hasTls = false;
 		return tlsData;
 	}
 
+	tlsData.hasTls = true;
 	if (currentFile.is64)
 	{
 		PIMAGE_TLS_DIRECTORY64 pTlsDir =

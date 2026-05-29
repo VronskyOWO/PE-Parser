@@ -127,6 +127,8 @@ struct BoundImportDataBlock
 
 struct TlsData
 {
+	bool hasTls = false;
+
 	std::string StartAddressOfRawData;
 	std::string EndAddressOfRawData;
 	std::string AddressOfIndex;
