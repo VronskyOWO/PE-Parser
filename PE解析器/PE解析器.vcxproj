@@ -145,6 +145,7 @@
     <ClInclude Include="PECore.h" />
     <ClInclude Include="PEFile.h" />
     <ClInclude Include="PEFile2.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="Tool.h" />
     <ClInclude Include="ViewData.h" />
   </ItemGroup>
@@ -159,6 +160,12 @@
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="PECore.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="ico.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="PE解析器.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

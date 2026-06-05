@@ -14,6 +14,7 @@
 #include <tchar.h>
 #include "App.h"
 #include "PECore.h"
+#include "resource.h"
 // Data
 ID3D11Device*            g_pd3dDevice = nullptr;
 ID3D11DeviceContext*     g_pd3dDeviceContext = nullptr;
@@ -48,21 +49,21 @@ int  WinMain( HINSTANCE hInstance,HINSTANCE hPrevInstance,LPSTR  lpCmdLine,int n
     wc.cbWndExtra = 0L;
     wc.hInstance = GetModuleHandle(nullptr);
 
-  /*  wc.hIcon = (HICON)LoadImageW(
+  wc.hIcon = (HICON)LoadImageW(
         wc.hInstance,
         MAKEINTRESOURCEW(IDI_APPICON),
         IMAGE_ICON,
         GetSystemMetrics(SM_CXICON),
         GetSystemMetrics(SM_CYICON),
-        LR_DEFAULTCOLOR);*/
+        LR_DEFAULTCOLOR);
 
-   /* wc.hIconSm = (HICON)LoadImageW(
+   wc.hIconSm = (HICON)LoadImageW(
         wc.hInstance,
         MAKEINTRESOURCEW(IDI_APPICON),
         IMAGE_ICON,
         GetSystemMetrics(SM_CXSMICON),
         GetSystemMetrics(SM_CYSMICON),
-        LR_DEFAULTCOLOR);*/
+        LR_DEFAULTCOLOR);
 
     wc.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(IDC_ARROW));
     wc.lpszClassName = L"ImGui Example";
